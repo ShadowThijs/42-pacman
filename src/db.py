@@ -15,8 +15,8 @@ class Database:
     def connect_db(self, name: str) -> sq.Cursor:
         """Connect to a database."""
         self.name = name
-        self.conn: sq.Connection = sq.connect(name)
-        self.cursor: sq.Cursor = self.conn.cursor()
+        self.conn = sq.connect(name)
+        self.cursor = self.conn.cursor()
         return self.cursor
 
     def setup_db(self):
@@ -44,7 +44,6 @@ class Database:
             ''', (limit,))
             return self.cursor.fetchall() or []
         except sq.Error:
-            print(sq.Error)
             return []
 
     def add_leaderboard_entry(self, name: str, score: int) -> None:
@@ -59,7 +58,13 @@ class Database:
                     (?, ?)
             ''', (name, score))
             self.conn.commit()
-            print(f"Added {name} with {score}")
         except sq.Error:
             print(sq.Error)
             return
+
+def db_init() -> Database:
+    """Helper for initializing database."""
+    db: Database = Database()
+    db.connect_db("database.db")
+    db.setup_db()
+    return db
