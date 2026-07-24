@@ -62,6 +62,7 @@ class Database:
             print(sq.Error)
             return
 
+
 def db_init() -> Database:
     """Helper for initializing database."""
     db: Database = Database()

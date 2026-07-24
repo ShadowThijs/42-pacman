@@ -3,6 +3,7 @@
 import json
 import re
 from pathlib import Path
+from typing import Any, ClassVar
 
 
 def clean_json(text: str) -> str:
@@ -17,7 +18,12 @@ def clean_json(text: str) -> str:
             "(?:\\.|[^"\\])*"
         )
     """
-    return re.sub(pattern, lambda m: m.group("string") or "", text, flags=re.VERBOSE)
+    return re.sub(
+        pattern,
+        lambda m: m.group("string") or "",
+        text, flags=re.VERBOSE
+    )
+
 
 class Config:
     """Config class.
@@ -25,23 +31,71 @@ class Config:
     Holds all config file values.
     """
 
+    highscore_db: str
+    level: int
+    width: int
+    height: int
+    lives: int
+    pacgum: int
+    pp_pacgum: int
+    pp_super_pacgum: int
+    pp_ghost: int
+    seed: int
+    level_max_time: int
+
+    DEFAULTS: ClassVar[dict[str, Any]] = {
+        "highscore_db": "database.db",
+        "level": 1,
+        "width": 20,
+        "height": 20,
+        "lives": 3,
+        "pacgum": 42,
+        "pp_pacgum": 10,
+        "pp_super_pacgum": 50,
+        "pp_ghost": 200,
+        "seed": 42,
+        "level_max_time": 90,
+    }
+
     def __init__(self, cfg_json: str) -> None:
         """Init Config."""
-        file_dir: Path = Path(__file__).parent.parent
+        data: dict[str, Any] = {}
+
         if cfg_json == "":
             print("Missing config.json")
-            self.highscore_db:      str = "database.db"
-            self.level:             int = 1
-            self.width:             int = 20
-            self.height:            int = 20
-            self.lives:             int = 3
-            self.pacgum:            int = 42
-            self.pp_pacgum:         int = 10
-            self.pp_super_pacgum:   int = 50
-            self.pp_ghost:          int = 200
-            self.seed:              int = 42
-            self.leve_max_time:     int = 90
+        elif not Path(cfg_json).is_file():
+            print(f"Config file not found: {cfg_json}")
         else:
             with open(cfg_json) as f:
-                d = json.loads(clean_json(f.read()))
-                print(d)
+                data = json.loads(clean_json(f.read()))
+
+        for key, default in self.DEFAULTS.items():
+            value = data.get(key, default)
+            if key not in data:
+                print(f"Missing '{key}' in config, using default: {default!r}")
+            elif not isinstance(value, type(default)):
+                print(f"Invalid type for '{key}', using default: {default!r}")
+                value = default
+            setattr(self, key, value)
+
+
+class Colors:
+    """Color transformation."""
+    red = (255, 0, 0)
+    orange = (255, 128, 0)
+    yellow = (255, 255, 0)
+    green = (0, 255, 0)
+    blue = (0, 0, 255)
+    indigo = (75, 0, 130)
+    violet = (148, 0, 211)
+    white = (255, 255, 255)
+    black = (0, 0, 0)
+    purple = (128, 0, 128)
+    cyan = (0, 255, 255)
+    lime = (137, 243, 54)
+    magenta = (139, 0, 139)
+    brown = (64, 32, 0)
+    gold = (255, 215, 0)
+    maroon = (128, 0, 0)
+    darkred = (139, 0, 0)
+    crimson = (220, 20, 60)

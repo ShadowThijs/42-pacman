@@ -2,9 +2,10 @@
 
 from .db import Database, db_init
 from .game import Game
-from .models import Config
+from .models import Colors, Config
 
 __all__ = [
+    "Colors",
     "Config",
     "Database",
     "Game",

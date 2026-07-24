@@ -5,7 +5,7 @@ import sys
 from src import Config, Database, Game, db_init
 
 
-def main():
+def main() -> None:
     """Main function."""
     for s in sys.argv:
         print(s)
@@ -16,7 +16,7 @@ def main():
     for entry in lb:
         print(f"Name {entry[0]}: {entry[1]}")
     game: Game = Game()
-    game.init_game(800,600)
+    game.init_game(1200, 800, config)
 
 
 if __name__ == "__main__":
