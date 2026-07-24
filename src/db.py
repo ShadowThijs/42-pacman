@@ -19,7 +19,7 @@ class Database:
         self.cursor = self.conn.cursor()
         return self.cursor
 
-    def setup_db(self):
+    def setup_db(self) -> None:
         """Setup the database."""
         if not hasattr(self, 'cursor'):
             return
