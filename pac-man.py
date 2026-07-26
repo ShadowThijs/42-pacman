@@ -11,7 +11,7 @@ def main() -> None:
         print(s)
     cfg_file: str = sys.argv[1] if len(sys.argv) > 1 else ""
     config: Config = Config(cfg_json=cfg_file)
-    db: Database = db_init()
+    db: Database = db_init(config)
     lb: list[tuple[str, int]] = db.get_leaderboard()
     for entry in lb:
         print(f"Name {entry[0]}: {entry[1]}")

@@ -2,6 +2,8 @@
 
 import sqlite3 as sq
 
+from .models import Config
+
 
 class Database:
     """Database class."""
@@ -63,9 +65,9 @@ class Database:
             return
 
 
-def db_init() -> Database:
+def db_init(cfg: Config) -> Database:
     """Helper for initializing database."""
     db: Database = Database()
-    db.connect_db("database.db")
+    db.connect_db(cfg.highscore_db)
     db.setup_db()
     return db
