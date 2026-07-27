@@ -135,8 +135,8 @@ class Game:
                     )
 
         for r, c in self.pacgums:
-            cx = ox + c * CELL_SIZE + CELL_SIZE // 2
-            cy = oy + r * CELL_SIZE + CELL_SIZE // 2
+            cx: int = ox + c * CELL_SIZE + CELL_SIZE // 2
+            cy: int = oy + r * CELL_SIZE + CELL_SIZE // 2
             pygame.draw.circle(self.screen, Colors.orange, (cx, cy), radius)
 
     def pacgum_locations(self, maze: MazeGenerator) -> list[tuple[int, int]]:
