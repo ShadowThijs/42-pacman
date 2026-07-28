@@ -7,6 +7,7 @@ import pygame
 from mazegenerator import MazeGenerator
 
 from .models import Colors, Config, Direction
+from .player import PacMan
 
 ENCLOSED: int = Direction.All
 
@@ -30,6 +31,7 @@ class Game:
         self.current_maze: MazeGenerator
         self.config: Config
         self.pacgums: list[tuple[int, int]]
+        self.pac: PacMan
 
     def init_game(
         self,
@@ -46,8 +48,10 @@ class Game:
         pygame.display.set_caption("42PacMan")
 
         self.clock = pygame.time.Clock()
+        self.pac = PacMan(width / 2, height / 2)
 
         while True:
+            dt: float = self.clock.tick(60) / 1000.0
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     pygame.quit()
@@ -59,22 +63,19 @@ class Game:
                     if event.key == pygame.K_r:
                         self.new_level(cfg)
                     if event.key == pygame.K_UP:
-                        # Move up
-                        print("Move up")
+                        self.pac.set_direction(Direction.North)
                     if event.key == pygame.K_DOWN:
-                        # Move down
-                        print("Move down")
+                        self.pac.set_direction(Direction.South)
                     if event.key == pygame.K_LEFT:
-                        # Move left
-                        print("Move left")
+                        self.pac.set_direction(Direction.West)
                     if event.key == pygame.K_RIGHT:
-                        # Move right
-                        print("Move right")
+                        self.pac.set_direction(Direction.East)
             self.screen.fill(Colors.black)
             self.render_level(self.current_maze)
+            self.pac.update(dt)
+            self.pac.draw(self.screen)
             pygame.display.flip()
 
-            self.clock.tick(60)
 
     def new_level(
         self,
