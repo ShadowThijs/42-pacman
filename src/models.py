@@ -99,3 +99,12 @@ class Colors:
     maroon = (128, 0, 0)
     darkred = (139, 0, 0)
     crimson = (220, 20, 60)
+
+
+class Direction:
+    """Directions for ghosts and player."""
+    North: int = 0x1
+    East:  int = 0x2
+    South: int = 0x4
+    West:  int = 0x8
+    All:   int = 0xf

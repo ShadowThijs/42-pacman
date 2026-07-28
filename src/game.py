@@ -6,13 +6,9 @@ import sys
 import pygame
 from mazegenerator import MazeGenerator
 
-from .models import Colors, Config
+from .models import Colors, Config, Direction
 
-NORTH: int = 0x1
-EAST: int = 0x2
-SOUTH: int = 0x4
-WEST: int = 0x8
-ENCLOSED: int = NORTH | EAST | SOUTH | WEST
+ENCLOSED: int = Direction.All
 
 CELL_SIZE: int = 30
 WALL_THICKNESS: int = 3
@@ -62,7 +58,6 @@ class Game:
                         sys.exit()
                     if event.key == pygame.K_r:
                         self.new_level(cfg)
-                        print(cfg.seed)
                     if event.key == pygame.K_UP:
                         # Move up
                         print("Move up")
@@ -109,25 +104,25 @@ class Game:
                 x = ox + c * CELL_SIZE
                 y = oy + r * CELL_SIZE
 
-                if col & NORTH:
+                if col & Direction.North:
                     pygame.draw.line(
                         self.screen, Colors.blue,
                         (x, y), (x + CELL_SIZE, y),
                         WALL_THICKNESS
                     )
-                if col & WEST:
+                if col & Direction.West:
                     pygame.draw.line(
                         self.screen, Colors.blue,
                         (x, y), (x, y + CELL_SIZE),
                         WALL_THICKNESS
                     )
-                if col & SOUTH:
+                if col & Direction.South:
                     pygame.draw.line(
                         self.screen, Colors.blue,
                         (x, y + CELL_SIZE), (x + CELL_SIZE, y + CELL_SIZE),
                         WALL_THICKNESS
                     )
-                if col & EAST:
+                if col & Direction.East:
                     pygame.draw.line(
                         self.screen, Colors.blue,
                         (x + CELL_SIZE, y), (x + CELL_SIZE, y + CELL_SIZE),
