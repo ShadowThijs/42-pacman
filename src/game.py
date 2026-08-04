@@ -8,10 +8,11 @@ from mazegenerator import MazeGenerator
 
 from .models import Colors, Config, Direction
 from .player import PacMan
+from .sprites import Sprites
 
 ENCLOSED: int = Direction.All
 
-CELL_SIZE: int = 30
+CELL_SIZE: int = 36
 WALL_THICKNESS: int = 3
 
 
@@ -32,6 +33,7 @@ class Game:
         self.config: Config
         self.pacgums: list[tuple[int, int]]
         self.pac: PacMan
+        self.sprites: Sprites
 
     def init_game(
         self,
@@ -43,6 +45,7 @@ class Game:
         self.start_level = False
         self.new_level(cfg)
         self.start_level = True
+        self.sprites = Sprites()
         pygame.init()
         self.screen = pygame.display.set_mode((width, height))
         pygame.display.set_caption("42PacMan")
@@ -73,7 +76,7 @@ class Game:
             self.screen.fill(Colors.black)
             self.render_level(self.current_maze)
             self.pac.update(dt)
-            self.pac.draw(self.screen)
+            self.pac.draw(self.screen, self.sprites)
             pygame.display.flip()
 
 
