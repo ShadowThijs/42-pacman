@@ -32,6 +32,7 @@ class Game:
         self.pacgums: list[tuple[int, int]]
         self.pac: PacMan
         self.sprites: Sprites
+        self.score: int = 0
 
     def init_game(
         self,
@@ -62,17 +63,24 @@ class Game:
                         sys.exit()
                     if event.key == pygame.K_r:
                         self.new_level(cfg)
-                    if event.key == pygame.K_UP:
+                    if event.key in (pygame.K_UP, pygame.K_w):
                         self.pac.queue(Direction.North)
-                    if event.key == pygame.K_DOWN:
+                    if event.key in (pygame.K_DOWN, pygame.K_s):
                         self.pac.queue(Direction.South)
-                    if event.key == pygame.K_LEFT:
+                    if event.key in (pygame.K_LEFT, pygame.K_a):
                         self.pac.queue(Direction.West)
-                    if event.key == pygame.K_RIGHT:
+                    if event.key in (pygame.K_RIGHT, pygame.K_d):
                         self.pac.queue(Direction.East)
             self.screen.fill(Colors.black)
             self.render_level(self.current_maze)
-            self.pac.update(dt, self.current_maze.maze)
+            eaten: int = self.pac.update(
+                dt,
+                self.current_maze.maze,
+                self.pacgums
+            )
+            self.score += eaten * self.config.pp_pacgum
+            if not self.pacgums:
+                self.new_level(cfg)
             self.pac.draw(self.screen, self.sprites)
             pygame.display.flip()
 

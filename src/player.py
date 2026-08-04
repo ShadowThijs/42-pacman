@@ -2,7 +2,7 @@
 
 import pygame
 
-from .models import CELL_SIZE, OFFSET, Direction
+from .models import CELL_SIZE, OFFSET, Config, Direction
 from .sprites import Sprites
 
 VECTORS: dict[int, tuple[int, int]] = {
@@ -49,8 +49,14 @@ class PacMan:
         """Buffer a direction change, applied at the next tile center."""
         self.next_direction = direction
 
-    def update(self, dt: float, maze: list[list[int]]) -> None:
+    def update(
+        self,
+        dt: float,
+        maze: list[list[int]],
+        pacgums: list[tuple[int, int]],
+    ) -> int:
         """Advance the player one frame."""
+        eaten: int = 0
         rev_dir = self.direction
         rev_next = self.next_direction
         if (self.progress > 0.0
@@ -65,11 +71,16 @@ class PacMan:
             self.progress = 1.0 - self.progress
             self.next_direction = None
 
+        for p in list(pacgums):
+            if self.row == p[0] and self.col == p[1]:
+                pacgums.remove(p)
+                eaten += 1
+
         if self.progress == 0.0:
             self._decide(maze)
 
         if self.direction is None:
-            return
+            return eaten
 
         step: float = self.speed * dt / CELL_SIZE
         self.progress += step
@@ -81,13 +92,14 @@ class PacMan:
             self._decide(maze)
             if self.direction is None:
                 self.progress = 0.0
-                return
+                return eaten
 
         self.anim_t += dt
         if self.anim_t >= SWITCH_DT:
             self.anim_t = 0.0
             self.anim_frame = 1 - self.anim_frame
         self.frame = self.anim_frame + 1
+        return eaten
 
     def _decide(self, maze: list[list[int]]) -> None:
         """Resolve buffered input; stop if the facing direction is walled."""
