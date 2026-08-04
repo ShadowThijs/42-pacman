@@ -1,10 +1,8 @@
 """Player class."""
 
-from typing import Optional
-
 import pygame
 
-from .models import Colors, Direction
+from .models import CELL_SIZE, OFFSET, Direction
 from .sprites import Sprites
 
 VECTORS: dict[int, tuple[int, int]] = {
@@ -14,7 +12,16 @@ VECTORS: dict[int, tuple[int, int]] = {
     Direction.West: (-1, 0)
 }
 
+# Opposite direction, for instant mid-tile reversals.
+REVERSE: dict[int, int] = {
+    Direction.North: Direction.South,
+    Direction.South: Direction.North,
+    Direction.East: Direction.West,
+    Direction.West: Direction.East,
+}
+
 SWITCH_DT: float = 0.2
+
 
 class PacMan:
     """Pacman player class."""
@@ -25,37 +32,111 @@ class PacMan:
         y: float,
         speed: int = 100
     ) -> None:
-        """Initialize Pacman at (x,y) with speed."""
-        self.x: float = x
-        self.y: float = y
+        """Initialize Pacman in the tile containing pixel (x, y)."""
         self.speed: int = speed
-        self.direction: int = Direction.North
-        self.is_moving: bool = False
+        self.row: int
+        self.col: int
+        self.row, self.col = self._tile_at(x, y)
+        self.progress: float = 0.0
+        self.direction: int | None = None
+        self.next_direction: int | None = None
+        self.facing: int = Direction.East
         self.frame: int = 1
         self.anim_t: float = 0.0
         self.anim_frame: int = 0
 
-    def set_direction(self, direction: int) -> None:
-        """Set the direction the player wants to move in."""
-        self.direction = direction
+    def queue(self, direction: int) -> None:
+        """Buffer a direction change, applied at the next tile center."""
+        self.next_direction = direction
 
-    def update(self, dt: float) -> None:
-        """Advance the player in current direction."""
-        if self.direction is None or self.direction not in VECTORS:
-            self.is_moving = False
+    def update(self, dt: float, maze: list[list[int]]) -> None:
+        """Advance the player one frame."""
+        rev_dir = self.direction
+        rev_next = self.next_direction
+        if (self.progress > 0.0
+                and rev_dir is not None
+                and rev_next is not None
+                and rev_next == REVERSE[rev_dir]):
+            dx, dy = VECTORS[rev_dir]
+            self.col += dx
+            self.row += dy
+            self.direction = rev_next
+            self.facing = rev_next
+            self.progress = 1.0 - self.progress
+            self.next_direction = None
+
+        if self.progress == 0.0:
+            self._decide(maze)
+
+        if self.direction is None:
             return
+
+        step: float = self.speed * dt / CELL_SIZE
+        self.progress += step
+        while self.progress >= 1.0:
+            self.progress -= 1.0
+            dx, dy = VECTORS[self.direction]
+            self.col += dx
+            self.row += dy
+            self._decide(maze)
+            if self.direction is None:
+                self.progress = 0.0
+                return
 
         self.anim_t += dt
         if self.anim_t >= SWITCH_DT:
             self.anim_t = 0.0
             self.anim_frame = 1 - self.anim_frame
         self.frame = self.anim_frame + 1
-        dx, dy = VECTORS[self.direction]
-        self.x += dx * self.speed * dt
-        self.y += dy * self.speed * dt
-        self.is_moving = True
+
+    def _decide(self, maze: list[list[int]]) -> None:
+        """Resolve buffered input; stop if the facing direction is walled."""
+        nxt = self.next_direction
+        if nxt is not None and self._open(maze, self.row, self.col, nxt):
+            self.direction = nxt
+            self.facing = nxt
+            self.next_direction = None
+        if self.direction is not None and \
+                not self._open(maze, self.row, self.col, self.direction):
+            self.direction = None
 
     def draw(self, screen: pygame.Surface, sp: Sprites) -> None:
         """Draw the player."""
-        spr: pygame.Surface = sp.pacman(self.direction, self.frame)
+        spr: pygame.Surface = sp.pacman(self.facing, self.frame)
         screen.blit(spr, (self.x - 16, self.y - 16))
+
+    @property
+    def x(self) -> float:
+        """Pixel x, interpolated between current tile and the next."""
+        ox, _ = OFFSET
+        base: float = ox + self.col * CELL_SIZE + CELL_SIZE / 2
+        if self.direction is None:
+            return base
+        return base + VECTORS[self.direction][0] * CELL_SIZE * self.progress
+
+    @property
+    def y(self) -> float:
+        """Pixel y, interpolated between current tile and the next."""
+        _, oy = OFFSET
+        base: float = oy + self.row * CELL_SIZE + CELL_SIZE / 2
+        if self.direction is None:
+            return base
+        return base + VECTORS[self.direction][1] * CELL_SIZE * self.progress
+
+    @staticmethod
+    def _tile_at(x: float, y: float) -> tuple[int, int]:
+        """Return (row, col) of the tile containing pixel (x, y)."""
+        ox, oy = OFFSET
+        col: int = round((x - ox - CELL_SIZE / 2) / CELL_SIZE)
+        row: int = round((y - oy - CELL_SIZE / 2) / CELL_SIZE)
+        return row, col
+
+    @staticmethod
+    def _open(
+        maze: list[list[int]],
+        row: int,
+        col: int,
+        direction: int
+    ) -> bool:
+        """No wall on `direction`'s side of cell (row, col)."""
+        return maze[row][col] & direction == 0

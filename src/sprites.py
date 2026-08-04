@@ -43,11 +43,17 @@ class Sprites:
         direction: int,
         frame: int = 1
     ) -> pygame.Surface:
-        """Get colored ghost sprite (red/pink/cyan/orange) for a direction and frame (1-2)."""
-        return self._load(f"{color}-ghost/{_DIR_LETTER[direction]}-{frame}.svg")
+        """Ghost sprite (red/pink/cyan/orange), direction + frame (1-2)."""
+        return self._load(
+            f"{color}-ghost/{_DIR_LETTER[direction]}-{frame}.svg"
+        )
 
-    def vulnerable(self, white: bool = False, frame: int = 1) -> pygame.Surface:
-        """Get frightened ghost sprite; white flashes when fright is ending (frame 1-2)."""
+    def vulnerable(
+        self,
+        white: bool = False,
+        frame: int = 1
+    ) -> pygame.Surface:
+        """Frightened ghost sprite; white flashes near fright end (1-2)."""
         tone: str = "white" if white else "blue"
         return self._load(f"vulnerable-ghost/{tone}-{frame}.svg")
 

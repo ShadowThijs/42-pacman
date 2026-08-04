@@ -5,6 +5,10 @@ import re
 from pathlib import Path
 from typing import Any, ClassVar
 
+CELL_SIZE: int = 36
+WALL_THICKNESS: int = 2
+OFFSET: tuple[int, int] = (50, 50)
+
 
 def clean_json(text: str) -> str:
     """Strip #, // and /* */ comments from JSON text."""

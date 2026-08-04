@@ -6,14 +6,12 @@ import sys
 import pygame
 from mazegenerator import MazeGenerator
 
-from .models import Colors, Config, Direction
+from .models import (
+    CELL_SIZE, OFFSET, WALL_THICKNESS,
+    Colors, Config, Direction
+)
 from .player import PacMan
 from .sprites import Sprites
-
-ENCLOSED: int = Direction.All
-
-CELL_SIZE: int = 36
-WALL_THICKNESS: int = 3
 
 
 class Game:
@@ -51,10 +49,9 @@ class Game:
         pygame.display.set_caption("42PacMan")
 
         self.clock = pygame.time.Clock()
-        self.pac = PacMan(width / 2, height / 2)
 
         while True:
-            dt: float = self.clock.tick(60) / 1000.0
+            dt: float = min(self.clock.tick(60) / 1000.0, 0.05)
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     pygame.quit()
@@ -66,19 +63,18 @@ class Game:
                     if event.key == pygame.K_r:
                         self.new_level(cfg)
                     if event.key == pygame.K_UP:
-                        self.pac.set_direction(Direction.North)
+                        self.pac.queue(Direction.North)
                     if event.key == pygame.K_DOWN:
-                        self.pac.set_direction(Direction.South)
+                        self.pac.queue(Direction.South)
                     if event.key == pygame.K_LEFT:
-                        self.pac.set_direction(Direction.West)
+                        self.pac.queue(Direction.West)
                     if event.key == pygame.K_RIGHT:
-                        self.pac.set_direction(Direction.East)
+                        self.pac.queue(Direction.East)
             self.screen.fill(Colors.black)
             self.render_level(self.current_maze)
-            self.pac.update(dt)
+            self.pac.update(dt, self.current_maze.maze)
             self.pac.draw(self.screen, self.sprites)
             pygame.display.flip()
-
 
     def new_level(
         self,
@@ -93,6 +89,19 @@ class Game:
             seed=cfg.seed
         )
         self.config = cfg
+        ox, oy = OFFSET
+        sr, sc = next(
+            (r, c)
+            for r, row in enumerate(self.current_maze.maze)
+            for c, v in enumerate(row)
+            if v != Direction.All
+            and r > cfg.height / 2 + 1
+            and c > cfg.width / 2 - 2
+        )
+        self.pac = PacMan(
+            ox + sc * CELL_SIZE + CELL_SIZE / 2,
+            oy + sr * CELL_SIZE + CELL_SIZE / 2,
+        )
         self.pacgums = self.pacgum_locations(self.current_maze)
 
     def render_level(
@@ -100,8 +109,7 @@ class Game:
         maze: MazeGenerator
     ) -> None:
         """Render the maze."""
-        ox: int = 50
-        oy: int = 50
+        ox, oy = OFFSET
         radius: int = 4
         for r, row in enumerate(maze.maze):
             for c, col in enumerate(row):
@@ -144,6 +152,6 @@ class Game:
             (r, c)
             for r, row in enumerate(maze.maze)
             for c, col in enumerate(row)
-            if col != ENCLOSED
+            if col != Direction.All
         ]
         return random.sample(eligible, min(self.config.pacgum, len(eligible)))
