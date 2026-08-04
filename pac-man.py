@@ -7,8 +7,6 @@ from src import Config, Database, Game, db_init
 
 def main() -> None:
     """Main function."""
-    for s in sys.argv:
-        print(s)
     cfg_file: str = sys.argv[1] if len(sys.argv) > 1 else ""
     config: Config = Config(cfg_json=cfg_file)
     db: Database = db_init(config)
