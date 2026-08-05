@@ -8,7 +8,7 @@ from mazegenerator import MazeGenerator
 
 from .models import (
     CELL_SIZE, OFFSET, WALL_THICKNESS,
-    Colors, Config, Direction
+    Colors, Config, Direction, State
 )
 from .player import PacMan
 from .sprites import Sprites
@@ -22,6 +22,7 @@ class Game:
 
     def __init__(self) -> None:
         """Init Game class."""
+        self.running = True
         self.width: int
         self.height: int
         self.screen: pygame.Surface
@@ -33,6 +34,7 @@ class Game:
         self.pac: PacMan
         self.sprites: Sprites
         self.score: int = 0
+        self.stack: list[State]
 
     def init_game(
         self,
@@ -41,6 +43,7 @@ class Game:
         cfg: Config
     ) -> None:
         """Initialize game."""
+        self.config = cfg
         self.start_level = False
         self.new_level(cfg)
         self.start_level = True
@@ -51,38 +54,7 @@ class Game:
 
         self.clock = pygame.time.Clock()
 
-        while True:
-            dt: float = min(self.clock.tick(60) / 1000.0, 0.05)
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    pygame.quit()
-                    sys.exit()
-                if event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_q:
-                        pygame.quit()
-                        sys.exit()
-                    if event.key == pygame.K_r:
-                        self.new_level(cfg)
-                    if event.key in (pygame.K_UP, pygame.K_w):
-                        self.pac.queue(Direction.North)
-                    if event.key in (pygame.K_DOWN, pygame.K_s):
-                        self.pac.queue(Direction.South)
-                    if event.key in (pygame.K_LEFT, pygame.K_a):
-                        self.pac.queue(Direction.West)
-                    if event.key in (pygame.K_RIGHT, pygame.K_d):
-                        self.pac.queue(Direction.East)
-            self.screen.fill(Colors.black)
-            self.render_level(self.current_maze)
-            eaten: int = self.pac.update(
-                dt,
-                self.current_maze.maze,
-                self.pacgums
-            )
-            self.score += eaten * self.config.pp_pacgum
-            if not self.pacgums:
-                self.new_level(cfg)
-            self.pac.draw(self.screen, self.sprites)
-            pygame.display.flip()
+        self.run()
 
     def new_level(
         self,
@@ -96,7 +68,6 @@ class Game:
             False,
             seed=cfg.seed
         )
-        self.config = cfg
         ox, oy = OFFSET
         sr, sc = next(
             (r, c)
@@ -163,3 +134,56 @@ class Game:
             if col != Direction.All
         ]
         return random.sample(eligible, min(self.config.pacgum, len(eligible)))
+
+    @property
+    def current(self) -> State:
+        return self.stack[-1]
+
+    def push(self, state: State) -> None:
+        self.stack.append(state)
+
+    def pop(self) -> None:
+        self.stack.pop()
+
+    def replace(self, state: State) -> None:
+        self.stack[-1] = state
+
+    def quit(self) -> None:
+        self.running = False
+
+    def run(self) -> None:
+        """Run the game."""
+        while self.running:
+            dt: float = min(self.clock.tick(60) / 1000.0, 0.05)
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    sys.exit()
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_q:
+                        pygame.quit()
+                        sys.exit()
+                    if event.key == pygame.K_r:
+                        self.new_level(self.config)
+                    if event.key in (pygame.K_UP, pygame.K_w):
+                        self.pac.queue(Direction.North)
+                    if event.key in (pygame.K_DOWN, pygame.K_s):
+                        self.pac.queue(Direction.South)
+                    if event.key in (pygame.K_LEFT, pygame.K_a):
+                        self.pac.queue(Direction.West)
+                    if event.key in (pygame.K_RIGHT, pygame.K_d):
+                        self.pac.queue(Direction.East)
+            self.screen.fill(Colors.black)
+            self.render_level(self.current_maze)
+            eaten: int = self.pac.update(
+                dt,
+                self.current_maze.maze,
+                self.pacgums
+            )
+            self.score += eaten * self.config.pp_pacgum
+            if not self.pacgums:
+                self.new_level(self.config)
+            self.pac.draw(self.screen, self.sprites)
+            pygame.display.flip()
+        pygame.quit()
+        sys.exit()
