@@ -2,7 +2,7 @@
 
 import pygame
 
-from .models import CELL_SIZE, OFFSET, Config, Direction
+from .models import CELL_SIZE, OFFSET, Direction
 from .sprites import Sprites
 
 VECTORS: dict[int, tuple[int, int]] = {
@@ -12,7 +12,6 @@ VECTORS: dict[int, tuple[int, int]] = {
     Direction.West: (-1, 0)
 }
 
-# Opposite direction, for instant mid-tile reversals.
 REVERSE: dict[int, int] = {
     Direction.North: Direction.South,
     Direction.South: Direction.North,
