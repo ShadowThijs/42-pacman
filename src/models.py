@@ -1,13 +1,16 @@
 """Contains all general models."""
 
+from __future__ import annotations
+
 import json
 import re
 from pathlib import Path
-from typing import Any, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar
 
 import pygame as pg
 
-from .game import Game
+if TYPE_CHECKING:
+    from .game import Game
 
 CELL_SIZE: int = 36
 WALL_THICKNESS: int = 2
@@ -27,9 +30,7 @@ def clean_json(text: str) -> str:
         )
     """
     return re.sub(
-        pattern,
-        lambda m: m.group("string") or "",
-        text, flags=re.VERBOSE
+        pattern, lambda m: m.group("string") or "", text, flags=re.VERBOSE
     )
 
 
@@ -89,6 +90,7 @@ class Config:
 
 class Colors:
     """Color transformation."""
+
     red = (255, 0, 0)
     orange = (255, 128, 0)
     yellow = (255, 255, 0)
@@ -115,11 +117,12 @@ class Colors:
 
 class Direction:
     """Directions for ghosts and player."""
+
     North: int = 0x1
-    East:  int = 0x2
+    East: int = 0x2
     South: int = 0x4
-    West:  int = 0x8
-    All:   int = 0xf
+    West: int = 0x8
+    All: int = 0xF
 
 
 class State:
@@ -198,9 +201,7 @@ class GameState(State):
         self.game.screen.fill(Colors.black)
         self.game.render_level(self.game.current_maze)
         eaten: int = self.game.pac.update(
-            dt,
-            self.game.current_maze.maze,
-            self.game.pacgums
+            dt, self.game.current_maze.maze, self.game.pacgums
         )
         self.game.score += eaten * self.game.config.pp_pacgum
         if not self.game.pacgums:

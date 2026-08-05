@@ -17,7 +17,8 @@ class Blinky(Ghost):
     """Blinky (red) ghost.
 
     Follows Pac-Man directly (shortest path)
-    Goes to the upper-right corner in Scatter mode"""
+    Goes to the upper-right corner in Scatter mode
+    """
 
 
 class Inky(Ghost):
@@ -26,7 +27,8 @@ class Inky(Ghost):
     Target is relative to both Blinky and Pac-Man,
         where the distance Blinky is from Pinky's target
         is doubled to get Inky's target
-    Goes to the lower-right corner in Scatter mode"""
+    Goes to the lower-right corner in Scatter mode
+    """
 
 
 class Pinky(Ghost):
@@ -34,7 +36,8 @@ class Pinky(Ghost):
 
     Target spot 2 cells in front of Pac-Man
         * Will target 2 to the left when Pac-Man faces up
-    Goes to upper-left corner in Scatter mode"""
+    Goes to upper-left corner in Scatter mode
+    """
 
 
 class Clyde(Ghost):
@@ -42,4 +45,5 @@ class Clyde(Ghost):
 
     Target is Pac-Man directly, but tries to target,
         Scatter corner when within 8 cell radius of Pac-Man
-    Goes to lower-left in Scatter mode"""
+    Goes to lower-left in Scatter mode
+    """

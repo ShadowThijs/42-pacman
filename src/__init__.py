@@ -13,5 +13,5 @@ __all__ = [
     "Game",
     "PacMan",
     "Sprites",
-    "db_init"
+    "db_init",
 ]

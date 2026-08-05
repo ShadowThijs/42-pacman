@@ -2,6 +2,4 @@
 
 from .components import Button
 
-__all__ = [
-    "Button"
-]
+__all__ = ["Button"]

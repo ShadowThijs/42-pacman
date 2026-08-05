@@ -23,42 +23,48 @@ class Database:
 
     def setup_db(self) -> None:
         """Setup the database."""
-        if not hasattr(self, 'cursor'):
+        if not hasattr(self, "cursor"):
             return
-        self.cursor.execute('''
+        self.cursor.execute("""
         CREATE TABLE IF NOT EXISTS highscores
         (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
             score INTEGER NOT NULL
-        )''')
+        )""")
 
     def get_leaderboard(self, limit: int = 5) -> list[tuple[str, int]]:
         """Return leaderboard sorted from database."""
-        if not hasattr(self, 'cursor'):
+        if not hasattr(self, "cursor"):
             return []
         try:
-            self.cursor.execute('''
+            self.cursor.execute(
+                """
                 SELECT name, score
                 FROM highscores
                 ORDER BY score DESC
                 LIMIT ?
-            ''', (limit,))
+            """,
+                (limit,),
+            )
             return self.cursor.fetchall() or []
         except sq.Error:
             return []
 
     def add_leaderboard_entry(self, name: str, score: int) -> None:
         """Add a leaderboard entry to database."""
-        if not hasattr(self, 'cursor') and not hasattr(self, 'conn'):
+        if not hasattr(self, "cursor") and not hasattr(self, "conn"):
             return
         try:
-            self.cursor.execute('''
+            self.cursor.execute(
+                """
                 INSERT INTO highscores
                     (name, score)
                 VALUES
                     (?, ?)
-            ''', (name, score))
+            """,
+                (name, score),
+            )
             self.conn.commit()
         except sq.Error:
             print(sq.Error)

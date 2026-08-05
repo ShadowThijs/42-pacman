@@ -9,7 +9,7 @@ VECTORS: dict[int, tuple[int, int]] = {
     Direction.North: (0, -1),
     Direction.South: (0, 1),
     Direction.East: (1, 0),
-    Direction.West: (-1, 0)
+    Direction.West: (-1, 0),
 }
 
 REVERSE: dict[int, int] = {
@@ -25,12 +25,7 @@ SWITCH_DT: float = 0.2
 class PacMan:
     """Pacman player class."""
 
-    def __init__(
-        self,
-        x: float,
-        y: float,
-        speed: int = 100
-    ) -> None:
+    def __init__(self, x: float, y: float, speed: int = 100) -> None:
         """Initialize Pacman in the tile containing pixel (x, y)."""
         self.speed: int = speed
         self.row: int
@@ -58,10 +53,12 @@ class PacMan:
         eaten: int = 0
         rev_dir = self.direction
         rev_next = self.next_direction
-        if (self.progress > 0.0
-                and rev_dir is not None
-                and rev_next is not None
-                and rev_next == REVERSE[rev_dir]):
+        if (
+            self.progress > 0.0
+            and rev_dir is not None
+            and rev_next is not None
+            and rev_next == REVERSE[rev_dir]
+        ):
             dx, dy = VECTORS[rev_dir]
             self.col += dx
             self.row += dy
@@ -107,8 +104,9 @@ class PacMan:
             self.direction = nxt
             self.facing = nxt
             self.next_direction = None
-        if self.direction is not None and \
-                not self._open(maze, self.row, self.col, self.direction):
+        if self.direction is not None and not self._open(
+            maze, self.row, self.col, self.direction
+        ):
             self.direction = None
 
     def draw(self, screen: pygame.Surface, sp: Sprites) -> None:
@@ -144,10 +142,7 @@ class PacMan:
 
     @staticmethod
     def _open(
-        maze: list[list[int]],
-        row: int,
-        col: int,
-        direction: int
+        maze: list[list[int]], row: int, col: int, direction: int
     ) -> bool:
         """No wall on `direction`'s side of cell (row, col)."""
         return maze[row][col] & direction == 0

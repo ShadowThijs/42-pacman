@@ -11,7 +11,8 @@ class Button:
     """Button component.
 
     Has built-in keyboard support.
-    Has support for mouse interaction."""
+    Has support for mouse interaction.
+    """
 
     def __init__(
         self,
@@ -19,7 +20,7 @@ class Button:
         font: pg.font.Font,
         center: tuple[int, int],
         on_click: Any = None,
-        size: tuple[int, int] = (240, 56)
+        size: tuple[int, int] = (240, 56),
     ) -> None:
         """Init button."""
         self.text: str = text
@@ -33,7 +34,7 @@ class Button:
         """Handle event on button."""
         if event.type == pg.MOUSEMOTION:
             self.hovered = self.rect.collidepoint(event.pos)
-        elif (event.type == pg.MOUSEBUTTONUP and event.button == 1):
+        elif event.type == pg.MOUSEBUTTONUP and event.button == 1:
             self.hovered = self.rect.collidepoint(event.pos)
             if self.hovered and self.on_click is not None:
                 self.on_click()

@@ -7,8 +7,13 @@ import pygame
 from mazegenerator import MazeGenerator
 
 from .models import (
-    CELL_SIZE, OFFSET, WALL_THICKNESS,
-    Colors, Config, Direction, State
+    CELL_SIZE,
+    OFFSET,
+    WALL_THICKNESS,
+    Colors,
+    Config,
+    Direction,
+    State,
 )
 from .player import PacMan
 from .sprites import Sprites
@@ -36,12 +41,7 @@ class Game:
         self.score: int = 0
         self.stack: list[State]
 
-    def init_game(
-        self,
-        width: int,
-        height: int,
-        cfg: Config
-    ) -> None:
+    def init_game(self, width: int, height: int, cfg: Config) -> None:
         """Initialize game."""
         self.config = cfg
         self.start_level = False
@@ -56,17 +56,12 @@ class Game:
 
         self.run()
 
-    def new_level(
-        self,
-        cfg: Config
-    ) -> None:
+    def new_level(self, cfg: Config) -> None:
         """Create new level."""
         if self.start_level:
             cfg.seed = random.randint(0, 2_147_483_648)
         self.current_maze = MazeGenerator(
-            (cfg.width, cfg.height),
-            False,
-            seed=cfg.seed
+            (cfg.width, cfg.height), False, seed=cfg.seed
         )
         ox, oy = OFFSET
         sr, sc = next(
@@ -83,10 +78,7 @@ class Game:
         )
         self.pacgums = self.pacgum_locations(self.current_maze)
 
-    def render_level(
-        self,
-        maze: MazeGenerator
-    ) -> None:
+    def render_level(self, maze: MazeGenerator) -> None:
         """Render the maze."""
         ox, oy = OFFSET
         radius: int = 4
@@ -97,27 +89,35 @@ class Game:
 
                 if col & Direction.North:
                     pygame.draw.line(
-                        self.screen, Colors.blue,
-                        (x, y), (x + CELL_SIZE, y),
-                        WALL_THICKNESS
+                        self.screen,
+                        Colors.blue,
+                        (x, y),
+                        (x + CELL_SIZE, y),
+                        WALL_THICKNESS,
                     )
                 if col & Direction.West:
                     pygame.draw.line(
-                        self.screen, Colors.blue,
-                        (x, y), (x, y + CELL_SIZE),
-                        WALL_THICKNESS
+                        self.screen,
+                        Colors.blue,
+                        (x, y),
+                        (x, y + CELL_SIZE),
+                        WALL_THICKNESS,
                     )
                 if col & Direction.South:
                     pygame.draw.line(
-                        self.screen, Colors.blue,
-                        (x, y + CELL_SIZE), (x + CELL_SIZE, y + CELL_SIZE),
-                        WALL_THICKNESS
+                        self.screen,
+                        Colors.blue,
+                        (x, y + CELL_SIZE),
+                        (x + CELL_SIZE, y + CELL_SIZE),
+                        WALL_THICKNESS,
                     )
                 if col & Direction.East:
                     pygame.draw.line(
-                        self.screen, Colors.blue,
-                        (x + CELL_SIZE, y), (x + CELL_SIZE, y + CELL_SIZE),
-                        WALL_THICKNESS
+                        self.screen,
+                        Colors.blue,
+                        (x + CELL_SIZE, y),
+                        (x + CELL_SIZE, y + CELL_SIZE),
+                        WALL_THICKNESS,
                     )
 
         for r, c in self.pacgums:
@@ -176,9 +176,7 @@ class Game:
             self.screen.fill(Colors.black)
             self.render_level(self.current_maze)
             eaten: int = self.pac.update(
-                dt,
-                self.current_maze.maze,
-                self.pacgums
+                dt, self.current_maze.maze, self.pacgums
             )
             self.score += eaten * self.config.pp_pacgum
             if not self.pacgums:

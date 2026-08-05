@@ -38,10 +38,7 @@ class Sprites:
         return self._load(f"pacman/{_DIR_LETTER[direction]}-{frame}.svg")
 
     def ghost(
-        self,
-        color: str,
-        direction: int,
-        frame: int = 1
+        self, color: str, direction: int, frame: int = 1
     ) -> pygame.Surface:
         """Ghost sprite (red/pink/cyan/orange), direction + frame (1-2)."""
         return self._load(
@@ -49,9 +46,7 @@ class Sprites:
         )
 
     def vulnerable(
-        self,
-        white: bool = False,
-        frame: int = 1
+        self, white: bool = False, frame: int = 1
     ) -> pygame.Surface:
         """Frightened ghost sprite; white flashes near fright end (1-2)."""
         tone: str = "white" if white else "blue"
