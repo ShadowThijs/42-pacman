@@ -6,6 +6,7 @@ import sys
 import pygame
 from mazegenerator import MazeGenerator
 
+from .ghost import Ghost, Position, spawn_ghosts
 from .models import (
     CELL_SIZE,
     OFFSET,
@@ -40,6 +41,7 @@ class Game:
         self.sprites: Sprites
         self.score: int = 0
         self.stack: list[State]
+        self.ghosts: list[Ghost] = []
 
     def init_game(self, width: int, height: int, cfg: Config) -> None:
         """Initialize game."""
@@ -76,6 +78,7 @@ class Game:
             ox + sc * CELL_SIZE + CELL_SIZE / 2,
             oy + sr * CELL_SIZE + CELL_SIZE / 2,
         )
+        self.ghosts = spawn_ghosts(self.current_maze, self.config)
         self.pacgums = self.pacgum_locations(self.current_maze)
 
     def render_level(self, maze: MazeGenerator) -> None:
@@ -178,6 +181,10 @@ class Game:
             eaten: int = self.pac.update(
                 dt, self.current_maze.maze, self.pacgums
             )
+            for ghost in self.ghosts:
+                ghost.target = Position(self.pac.row, self.pac.col)
+                ghost.update(dt)
+                ghost.draw(self.screen, self.sprites)
             self.score += eaten * self.config.pp_pacgum
             if not self.pacgums:
                 self.new_level(self.config)
