@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import re
+from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar
 
@@ -123,6 +124,37 @@ class Direction:
     South: int = 0x4
     West: int = 0x8
     All: int = 0xF
+
+
+@dataclass(frozen=True)
+class Position:
+    """2D grid coordinate (row, col) with pixel x/y accessors.
+
+    The maze is indexed as ``maze[row][col]``, so a Position's ``row``
+    is the y-axis and its ``col`` is the x-axis. Use ``.x``/``.y`` or
+    :meth:`from_xy` when working with pixel-style (x, y) coordinates.
+    """
+
+    row: int = 0
+    col: int = 0
+
+    @property
+    def x(self) -> int:
+        """Pixel x coordinate (the column)."""
+        return self.col
+
+    @property
+    def y(self) -> int:
+        """Pixel y coordinate (the row)."""
+        return self.row
+
+    @classmethod
+    def from_xy(cls, x: int, y: int) -> Position:
+        """Build a Position from (x, y) coordinates (column, row)."""
+        return cls(y, x)
+
+    def __repr__(self) -> str:
+        return f"Position(row={self.row}, col={self.col})"
 
 
 class State:
