@@ -31,7 +31,7 @@ class GhostState(Enum):
     CHASE = auto() # normal behaviour, hunting pac-man
     SCATTER = auto() # normal behaviour, going to their corner
     FRIGHTENED = auto() # blue and edible (super gum)
-    DEAD_PATHING = auto # floating eyes returning to spawn
+    DEAD_PATHING = auto() # floating eyes returning to spawn
     DEAD_WAITING = auto() # reached corner, waiting for 5 sec to respawn
 
 
@@ -63,7 +63,7 @@ class Ghost:
         self.timer: float = 0.0 # generic timer for states
 
         #save the spawn position so we can return when we're dead
-        self.spawn_pos: Position = spawn if spawn is not None else self._spawn_title()
+        self.spawn_pos: Position = spawn if spawn is not None else self._spawn_tile()
         self.row: int = self.spawn_pos.row
         self.col: int = self.spawn_pos.col
 
@@ -229,7 +229,7 @@ class Ghost:
 
     def draw(self, screen: pygame.Surface, sp: Sprites) -> None:
         """Draw the ghost."""
-        if self.state = GhostState.DEAD_WAITING:
+        if self.state == GhostState.DEAD_WAITING:
             return
 
         spr: pygame.Surface
