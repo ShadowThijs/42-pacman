@@ -1,15 +1,14 @@
 """Ghost class."""
 
+import random
 from collections import deque
+from enum import Enum, auto
 
 import pygame
 from mazegenerator import MazeGenerator
 
 from .models import CELL_SIZE, OFFSET, Config, Direction, Position
 from .sprites import Sprites
-from collections import deque
-from enum import Enum, auto
-import random
 
 VECTORS: dict[int, tuple[int, int]] = {
     Direction.North: (0, -1),
@@ -109,9 +108,7 @@ class Ghost:
             self.timer -= dt
             if self.timer <= 0:
                 self.timer = 0.0
-                if self.state == GhostState.FRIGHTENED:
-                    self.state = GhostState.CHASE
-                elif self.state == GhostState.DEAD_WAITING:
+                if self.state == GhostState.FRIGHTENED or self.state == GhostState.DEAD_WAITING:
                     self.state = GhostState.CHASE
 
         if self.state == GhostState.DEAD_WAITING:
@@ -215,7 +212,7 @@ class Ghost:
         )
         possible_moves: list[int] = []
 
-        for direction, _ in VECTORS.items():
+        for direction in VECTORS:
             if direction == forbidden:
                 continue
             if self._open(self.maze.maze, self.row, self.col, direction):
