@@ -128,7 +128,7 @@ class Ghost:
         if self.state == GhostState.FRIGHTENED:
             current_speed *= 0.6 # 40% slower when edible
         elif self.state == GhostState.DEAD_PATHING:
-            current_speed *= 2.0 
+            current_speed *= 2.0
 
         step: float = current_speed * dt / CELL_SIZE
         self.progress += step
@@ -165,9 +165,9 @@ class Ghost:
             nxt = self._shortest_direction(
                 self.maze.maze, Position(self.row, self.col), self.target
             )
-        
 
-             if nxt is None:
+
+            if nxt is None:
                 nxt = self._nearest_direction()
         if nxt is not None:
             self.direction = nxt
@@ -214,7 +214,7 @@ class Ghost:
             REVERSE[self.direction] if self.direction is not None else None
         )
         possible_moves: list[int] = []
-        
+
         for direction, _ in VECTORS.items():
             if direction == forbidden:
                 continue
