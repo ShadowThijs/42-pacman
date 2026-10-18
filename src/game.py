@@ -6,7 +6,7 @@ import sys
 import pygame
 from mazegenerator import MazeGenerator
 
-from .ghost import Ghost, Position, spawn_ghosts
+from .ghost import Ghost, spawn_ghosts
 from .models import (
     CELL_SIZE,
     OFFSET,
@@ -14,6 +14,7 @@ from .models import (
     Colors,
     Config,
     Direction,
+    Position,
     State,
 )
 from .player import PacMan

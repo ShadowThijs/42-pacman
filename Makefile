@@ -16,13 +16,13 @@ clean: ## Clean python artifacts
 	find . -type d -name '.pytest_cache' -exec rm -rf {} + 2>/dev/null || true
 
 lint: ## Check linting errors
-	@$(MOD_CMD) flake8 $(SOURCES) $(MAIN)
-	@$(MOD_CMD) mypy $(SOURCES) $(MAIN) --warn-return-any --warn-unused-ignores \
+	@$(MODULE) flake8 $(SOURCES) $(MAIN)
+	@$(MODULE) mypy $(SOURCES) $(MAIN) --warn-return-any --warn-unused-ignores \
 		--ignore-missing-imports --disallow-untyped-defs --check-untyped-defs
 
 lint-strict: ## Stricter linting errors
-	@$(MOD_CMD) flake8 $(SOURCES) $(MAIN)
-	@$(MOD_CMD) mypy $(SOURCES) $(MAIN) --strict
+	@$(MODULE) flake8 $(SOURCES) $(MAIN)
+	@$(MODULE) mypy $(SOURCES) $(MAIN) --strict
 
 test: ## Run tests
 	@$(MOD_CMD) pytest tests/ -v

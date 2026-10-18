@@ -26,12 +26,13 @@ REVERSE: dict[int, int] = {
 
 SWITCH_DT: float = 0.2
 
+
 class GhostState(Enum):
-    CHASE = auto() # normal behaviour, hunting pac-man
-    SCATTER = auto() # normal behaviour, going to their corner
-    FRIGHTENED = auto() # blue and edible (super gum)
-    DEAD_PATHING = auto() # floating eyes returning to spawn
-    DEAD_WAITING = auto() # reached corner, waiting for 5 sec to respawn
+    CHASE = auto()  # normal behaviour, hunting pac-man
+    SCATTER = auto()  # normal behaviour, going to their corner
+    FRIGHTENED = auto()  # blue and edible (super gum)
+    DEAD_PATHING = auto()  # floating eyes returning to spawn
+    DEAD_WAITING = auto()  # reached corner, waiting for 5 sec to respawn
 
 
 class Ghost:
@@ -43,8 +44,8 @@ class Ghost:
     """
 
     COLOR: str = "red"
-    RESPAWN_DELAY: float = 5.0 # for 5-10s before respawining
-    FRIGHTENED_DURATION: float = 7.0 # how long the ghosts stay blue
+    RESPAWN_DELAY: float = 5.0  # for 5-10s before respawining
+    FRIGHTENED_DURATION: float = 7.0  # how long the ghosts stay blue
 
     def __init__(
         self,
@@ -58,11 +59,14 @@ class Ghost:
         self.config: Config = cfg
         self.base_speed: int = speed
 
-        self.state: GhostState = GhostState.SCATTER # start by going to corners
-        self.timer: float = 0.0 # generic timer for states
+        # start by going to corners
+        self.state: GhostState = GhostState.SCATTER
+        self.timer: float = 0.0
 
-        #save the spawn position so we can return when we're dead
-        self.spawn_pos: Position = spawn if spawn is not None else self._spawn_tile()
+        # save the spawn position so we can return when we're dead
+        self.spawn_pos: Position = (
+            spawn if spawn is not None else self._spawn_tile()
+        )
         self.row: int = self.spawn_pos.row
         self.col: int = self.spawn_pos.col
 
@@ -73,7 +77,8 @@ class Ghost:
         self.anim_t: float = 0.0
         self.anim_frame: int = 0
 
-        self.target: Position = self.spawn_pos # target start as the spawn position
+        # target start as the spawn position
+        self.target: Position = self.spawn_pos
 
     def reset_to_spawn(self) -> None:
         """called when pac-man dies, reset ghost to initial state and corner"""
@@ -108,7 +113,9 @@ class Ghost:
             self.timer -= dt
             if self.timer <= 0:
                 self.timer = 0.0
-                if self.state == GhostState.FRIGHTENED or self.state == GhostState.DEAD_WAITING:
+                if self.state == GhostState.FRIGHTENED:
+                    self.state = GhostState.CHASE
+                elif self.state == GhostState.DEAD_WAITING:
                     self.state = GhostState.CHASE
 
         if self.state == GhostState.DEAD_WAITING:
@@ -123,7 +130,7 @@ class Ghost:
         # use current_speed instead of based on state (slower for frightened)
         current_speed: float = float(self.base_speed)
         if self.state == GhostState.FRIGHTENED:
-            current_speed *= 0.6 # 40% slower when edible
+            current_speed *= 0.6  # 40% slower when edible
         elif self.state == GhostState.DEAD_PATHING:
             current_speed *= 2.0
 
@@ -135,9 +142,14 @@ class Ghost:
             self.col += dx
             self.row += dy
 
-            if self.state == GhostState.DEAD_PATHING and self.row == self.spawn_pos.row and self.col == self.spawn_pos.col:
+            if (
+                (self.state == GhostState.DEAD_PATHING) and
+                (self.row == self.spawn_pos.row) and
+                (self.col == self.spawn_pos.col)
+            ):
                 self.state = GhostState.DEAD_WAITING
-                self.timer = self.RESPAWN_DELAY # wait 5 seconds before reviving
+                # wait 5 seconds before reviving
+                self.timer = self.RESPAWN_DELAY
                 self.progess = 0.0
                 return
 
@@ -162,7 +174,6 @@ class Ghost:
             nxt = self._shortest_direction(
                 self.maze.maze, Position(self.row, self.col), self.target
             )
-
 
             if nxt is None:
                 nxt = self._nearest_direction()
@@ -218,7 +229,11 @@ class Ghost:
             if self._open(self.maze.maze, self.row, self.col, direction):
                 possible_moves.append(direction)
 
-        if not possible_moves and forbidden is not None and self._open(self.maze.maze, self.row, self.col, forbidden):
+        if (
+            not possible_moves and
+            forbidden is not None and
+            self._open(self.maze.maze, self.row, self.col, forbidden)
+        ):
             return forbidden
         elif possible_moves:
             return random.choice(possible_moves)
@@ -232,7 +247,9 @@ class Ghost:
         spr: pygame.Surface
 
         if self.state == GhostState.FRIGHTENED:
-            is_flashing: bool = self.timer < 2.0 and int(self.timer * 4) % 2 == 0
+            is_flashing: bool = (
+                self.timer < 2.0 and int(self.timer * 4) % 2 == 0
+            )
             spr = sp.vulnerable(white=is_flashing, frame=self.frame)
 
         elif self.state == GhostState.DEAD_PATHING:
@@ -299,11 +316,11 @@ class Ghost:
                 queue.append(nxt)
         return None
 
-
     def die(self) -> None:
         """trigegered when pac-man eats this ghost"""
         self.state = GhostState.DEAD_PATHING
-        self.target = self.spawn_pos # set target back to their home corner
+        self.target = self.spawn_pos  # set target back to their home corner
+
 
 class Blinky(Ghost):
     """Blinky (red) ghost.
