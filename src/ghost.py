@@ -215,6 +215,9 @@ class Blinky(Ghost):
     def _spawn_tile(self) -> Position:
         return self._corner(top=True, left=False)
 
+    def chase_target(self, pac) -> Position:
+        return Position(pac.row, pac.col)
+
 
 class Pinky(Ghost):
     """Pinky (pink) ghost.
@@ -228,6 +231,20 @@ class Pinky(Ghost):
 
     def _spawn_tile(self) -> Position:
         return self._corner(top=True, left=True)
+
+    def chase_target(self, pac) -> Position:
+        """chase target: 2 tiles ahead of the pac-man"""
+
+        dx, dy = VECTORS[pac.facing]
+        if pac.facing == Direction.North:
+            dx -= 1
+        row = pac.row + 2 * dy
+        col = pac.col + 2 * dx
+
+        row = max(0, min(row, len(self.maze.maze) - 1))
+        col = max(0, min(col, len(self.maze.maze[0]) - 1))
+
+        return Position(row, col)
 
 
 class Inky(Ghost):
@@ -244,6 +261,22 @@ class Inky(Ghost):
     def _spawn_tile(self) -> Position:
         return self._corner(top=False, left=False)
 
+    def chase_target(self, pac, blinky) -> Position:
+        dx, dy = VECTORS[pac.facing]
+        if pac.facing == Direction.North:
+            dx -= -1
+
+        pivot_row = pac.row + 2 * dy
+        pivot_col = pac.col + 2 * dx
+
+        row = 2 * pivot_row - blinky.row
+        col = 2 * pivot_col - blinky.col
+
+        row = max(0, min(row, len(self.maze.maze) - 1))
+        col = max(0, min(col, len(self.maze.maze[0]) - 1))
+
+        return Position(row, col)
+
 
 class Clyde(Ghost):
     """Clyde (orange) ghost.
@@ -257,6 +290,13 @@ class Clyde(Ghost):
 
     def _spawn_tile(self) -> Position:
         return self._corner(top=False, left=True)
+
+    def chase_target(self, pac, Blinky=None) -> Position:
+        dist_sq = (self.row - pac.row) ** 2 + (self.col - pac.col) ** 2
+
+        if dist_sq < 8 ** 2:
+            return self._spawn_tile()
+        return Position(pac.row, pac.col)
 
 
 def spawn_ghosts(maze: MazeGenerator, cfg: Config) -> list[Ghost]:
