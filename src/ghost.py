@@ -215,7 +215,7 @@ class Blinky(Ghost):
     def _spawn_tile(self) -> Position:
         return self._corner(top=True, left=False)
 
-    def chase_target(self, pac) -> Position:
+    def chase_target(self, pac, blinky=None) -> Position:
         return Position(pac.row, pac.col)
 
 
@@ -232,7 +232,7 @@ class Pinky(Ghost):
     def _spawn_tile(self) -> Position:
         return self._corner(top=True, left=True)
 
-    def chase_target(self, pac) -> Position:
+    def chase_target(self, pac, blinky=None) -> Position:
         """chase target: 2 tiles ahead of the pac-man"""
 
         dx, dy = VECTORS[pac.facing]
@@ -261,10 +261,10 @@ class Inky(Ghost):
     def _spawn_tile(self) -> Position:
         return self._corner(top=False, left=False)
 
-    def chase_target(self, pac, blinky) -> Position:
+    def chase_target(self, pac, blinky=None) -> Position:
         dx, dy = VECTORS[pac.facing]
         if pac.facing == Direction.North:
-            dx -= -1
+            dx = -1
 
         pivot_row = pac.row + 2 * dy
         pivot_col = pac.col + 2 * dx
