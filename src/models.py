@@ -111,6 +111,8 @@ class Colors:
     darkred = (139, 0, 0)
     crimson = (220, 20, 60)
 
+    muted = (170, 170, 190)
+
     base_button = (30, 30, 60)
     hover_button = (70, 70, 140)
     border_button = (90, 90, 120)
