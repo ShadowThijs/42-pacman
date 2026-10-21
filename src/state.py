@@ -3,6 +3,8 @@
 Manages the state of pygame.
 """
 
+from typing import Any
+
 import pygame as pg
 
 from src.game import Game
@@ -17,7 +19,7 @@ class State:
         self.game: Game = game
         print("Init state")
 
-    def handle_event(self, e: str) -> None:
+    def handle_event(self, event: Any) -> None:
         """Handle event."""
         print(f"Handling event for: {self.name}")
 
@@ -33,7 +35,7 @@ class State:
 class StartMenu(State):
     """Start menu class."""
 
-    def handle_event(self, e: str) -> None:
+    def handle_event(self, event: Any) -> None:
         """Handle event."""
 
     def update(self, dt: float) -> None:
@@ -46,7 +48,7 @@ class StartMenu(State):
 class PauseMenu(State):
     """Pause menu class."""
 
-    def handle_event(self, e: str) -> None:
+    def handle_event(self, event: Any) -> None:
         """Handle event."""
 
     def update(self, dt: float) -> None:
@@ -59,7 +61,7 @@ class PauseMenu(State):
 class GameState(State):
     """Game state class."""
 
-    def handle_event(self, e: str) -> None:
+    def handle_event(self, event: Any) -> None:
         """Handle event."""
 
     def update(self, dt: float) -> None:
@@ -97,10 +99,10 @@ class StateManager:
         length: int = len(self.stack) - 1
         return self.stack[length]
 
-    def handle_event(self, e: str) -> None:
+    def handle_event(self, event: Any) -> None:
         """Forward event to current event."""
         current: State = self.current()
-        current.handle_event(e)
+        current.handle_event(event)
 
     def update(self, dt: float) -> None:
         """Update current state."""
@@ -205,10 +207,14 @@ if __name__ == "__main__":
     first: State = State("first", game)
     second: State = State("second", game)
 
+    @staticmethod
+    def _test() -> None:
+        print("test")
+
     manager: StateManager = StateManager()
     manager.push(first)
     manager.replace(second)
     print(f"current: {manager.current().name}")
     manager.push(first)
-    manager.handle_event("test")
+    manager.handle_event(_test)
     manager.update(1.0)

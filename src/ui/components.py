@@ -42,8 +42,9 @@ class Button:
 
     def draw(self, screen: pg.Surface) -> None:
         """Draw button."""
-        fill = Colors.hover_button if self.hovered else Colors.base_button
-        edge = Colors.white if self.hovered else Colors.border_button
+        active = self.selected or self.hovered
+        fill = Colors.hover_button if active else Colors.base_button
+        edge = Colors.white if active else Colors.border_button
         pg.draw.rect(screen, fill, self.rect, border_radius=10)
         pg.draw.rect(screen, edge, self.rect, width=2, border_radius=10)
         label = self.font.render(self.text, True, Colors.white)
