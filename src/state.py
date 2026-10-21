@@ -17,7 +17,7 @@ class State:
         self.game: Game = game
         print("Init state")
 
-    def handle_event(self, e) -> None:
+    def handle_event(self, e: str) -> None:
         """Handle event."""
         print(f"Handling event for: {self.name}")
 
@@ -33,7 +33,7 @@ class State:
 class StartMenu(State):
     """Start menu class."""
 
-    def handle_event(self, e) -> None:
+    def handle_event(self, e: str) -> None:
         """Handle event."""
 
     def update(self, dt: float) -> None:
@@ -46,7 +46,7 @@ class StartMenu(State):
 class PauseMenu(State):
     """Pause menu class."""
 
-    def handle_event(self, e) -> None:
+    def handle_event(self, e: str) -> None:
         """Handle event."""
 
     def update(self, dt: float) -> None:
@@ -59,7 +59,7 @@ class PauseMenu(State):
 class GameState(State):
     """Game state class."""
 
-    def handle_event(self, e) -> None:
+    def handle_event(self, e: str) -> None:
         """Handle event."""
 
     def update(self, dt: float) -> None:
@@ -97,7 +97,7 @@ class StateManager:
         length: int = len(self.stack) - 1
         return self.stack[length]
 
-    def handle_event(self, e) -> None:
+    def handle_event(self, e: str) -> None:
         """Forward event to current event."""
         current: State = self.current()
         current.handle_event(e)
