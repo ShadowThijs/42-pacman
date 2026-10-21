@@ -182,8 +182,9 @@ class Game:
             eaten: int = self.pac.update(
                 dt, self.current_maze.maze, self.pacgums
             )
+            blinky = self.ghosts[0]
             for ghost in self.ghosts:
-                ghost.target = Position(self.pac.row, self.pac.col)
+                ghost.target = ghost.chase_target(self.pac, blinky)
                 ghost.update(dt)
                 ghost.draw(self.screen, self.sprites)
             self.score += eaten * self.config.pp_pacgum
