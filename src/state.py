@@ -113,6 +113,91 @@ class StateManager:
         current.draw(screen)
 
 
+# class State:
+#     """State class handler."""
+#
+#     def __init__(self, game: Game) -> None:
+#         """Init state."""
+#         self.game: Game = game
+#
+#     def handle_event(self, event: pg.event.Event) -> None:
+#         """Handle events."""
+#
+#     def update(self) -> None:
+#         """Update State."""
+#
+#     def draw(self, screen: pg.Surface) -> None:
+#         """Draw to screen in state."""
+#
+#
+# class StartMenu(State):
+#     """Start menu class."""
+#
+#     def handle_event(self, event: pg.event.Event) -> None:
+#         """Handle key events."""
+#         if event.type == pg.KEYDOWN:
+#             if event.key == pg.K_SPACE:
+#                 print("Starting game")
+#             if event.key == pg.K_l:
+#                 print("Going to leaderboard")
+#
+#
+# class PauseMenu(State):
+#     """Pause menu class."""
+#
+#     def handle_event(self, event: pg.event.Event) -> None:
+#         """Handle Pause menu key events."""
+#         if event.type != pg.KEYDOWN:
+#             return
+#         if event.key == pg.K_p:
+#             return
+#
+#
+# class GameState(State):
+#     """Playing game state class."""
+#
+#     def __init__(self, game: Game) -> None:
+#         """Init Game state."""
+#         super().__init__(game)
+#         self.x: int = game.config.width // 2
+#         self.y: int = game.config.height // 2
+#         self.score: int = 0
+#
+#     def handle_event(self, event: pg.event.Event) -> None:
+#         """Handle input during Game state."""
+#         if event.type != pg.KEYDOWN:
+#             return
+#         key: Any = event.key
+#         if key == pg.K_q:
+#             self.game.running = False
+#         if key == pg.K_r:
+#             self.game.new_level(self.game.config)
+#         if key == pg.K_p:
+#             self.game.push(PauseMenu(self.game))
+#         if key == pg.K_UP:
+#             self.game.pac.queue(Direction.North)
+#         if key == pg.K_RIGHT:
+#             self.game.pac.queue(Direction.East)
+#         if key == pg.K_DOWN:
+#             self.game.pac.queue(Direction.South)
+#         if key == pg.K_LEFT:
+#             self.game.pac.queue(Direction.West)
+#
+#     def draw(self, screen: pg.Surface) -> None:
+#         """Drawing this state."""
+#         dt: float = min(self.game.clock.tick(60) / 1000, 0.05)
+#         self.game.screen.fill(Colors.black)
+#         self.game.render_level(self.game.current_maze)
+#         eaten: int = self.game.pac.update(
+#             dt, self.game.current_maze.maze, self.game.pacgums
+#         )
+#         self.game.score += eaten * self.game.config.pp_pacgum
+#         if not self.game.pacgums:
+#             self.game.new_level(self.game.config)
+#         self.game.pac.draw(self.game.screen, self.game.sprites)
+#         pg.display.flip()
+
+
 if __name__ == "__main__":
     # Run the excluded state tests here
     print("running states.py")

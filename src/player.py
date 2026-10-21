@@ -25,7 +25,7 @@ SWITCH_DT: float = 0.2
 class PacMan:
     """Pacman player class."""
 
-    def __init__(self, x: float, y: float, speed: int = 100) -> None:
+    def __init__(self, x: float, y: float, speed: int = 80) -> None:
         """Initialize Pacman in the tile containing pixel (x, y)."""
         self.speed: int = speed
         self.row: int

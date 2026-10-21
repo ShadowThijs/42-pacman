@@ -1,6 +1,6 @@
 """Components for pygame."""
 
-from typing import Any
+from collections.abc import Callable
 
 import pygame as pg
 
@@ -19,16 +19,17 @@ class Button:
         text: str,
         font: pg.font.Font,
         center: tuple[int, int],
-        on_click: Any = None,
+        on_click: Callable[[], None] | None = None,
         size: tuple[int, int] = (240, 56),
     ) -> None:
         """Init button."""
         self.text: str = text
         self.font: pg.font.Font = font
-        self.on_click: Any = on_click
+        self.on_click: Callable[[], None] | None = on_click
         self.rect: pg.Rect = pg.Rect(0, 0, *size)
         self.rect.center = center
-        self.hovered = False
+        self.hovered: bool = False
+        self.selected: bool = False
 
     def handle_event(self, event: pg.event.Event) -> None:
         """Handle event on button."""

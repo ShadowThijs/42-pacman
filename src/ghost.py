@@ -1,11 +1,15 @@
 """Ghost class."""
 
+from __future__ import annotations
+
 import random
 from collections import deque
 from enum import Enum, auto
 
 import pygame
 from mazegenerator import MazeGenerator
+
+from src.player import PacMan
 
 from .models import CELL_SIZE, OFFSET, Config, Direction, Position
 from .sprites import Sprites
@@ -28,6 +32,7 @@ SWITCH_DT: float = 0.2
 
 
 class GhostState(Enum):
+    """Ghost states."""
     CHASE = auto()  # normal behaviour, hunting pac-man
     SCATTER = auto()  # normal behaviour, going to their corner
     FRIGHTENED = auto()  # blue and edible (super gum)
@@ -81,7 +86,7 @@ class Ghost:
         self.target: Position = self.spawn_pos
 
     def reset_to_spawn(self) -> None:
-        """called when pac-man dies, reset ghost to initial state and corner"""
+        """Resets ghosts to spawn after pacman dies."""
         self.state = GhostState.SCATTER
         self.timer = 0.0
 
@@ -107,15 +112,17 @@ class Ghost:
 
     def update(self, dt: float) -> None:
         """Advance the ghost one frame toward its target."""
-
         # deacrease timer if active, and revert state when time is up
         if self.timer > 0:
             self.timer -= dt
             if self.timer <= 0:
                 self.timer = 0.0
-                if self.state == GhostState.FRIGHTENED:
-                    self.state = GhostState.CHASE
-                elif self.state == GhostState.DEAD_WAITING:
+                if (
+                    self.state in (
+                        GhostState.FRIGHTENED,
+                        GhostState.DEAD_WAITING
+                    )
+                ):
                     self.state = GhostState.CHASE
 
         if self.state == GhostState.DEAD_WAITING:
@@ -143,9 +150,9 @@ class Ghost:
             self.row += dy
 
             if (
-                (self.state == GhostState.DEAD_PATHING) and
-                (self.row == self.spawn_pos.row) and
-                (self.col == self.spawn_pos.col)
+                (self.state == GhostState.DEAD_PATHING)
+                and (self.row == self.spawn_pos.row)
+                and (self.col == self.spawn_pos.col)
             ):
                 self.state = GhostState.DEAD_WAITING
                 # wait 5 seconds before reviving
@@ -216,8 +223,7 @@ class Ghost:
         return best
 
     def _random_direction(self) -> int | None:
-        """used in frightened state to wander randomly at intersections"""
-
+        """Used in frightened state to wander randomly at intersections."""
         forbidden: int | None = (
             REVERSE[self.direction] if self.direction is not None else None
         )
@@ -230,9 +236,9 @@ class Ghost:
                 possible_moves.append(direction)
 
         if (
-            not possible_moves and
-            forbidden is not None and
-            self._open(self.maze.maze, self.row, self.col, forbidden)
+            not possible_moves
+            and forbidden is not None
+            and self._open(self.maze.maze, self.row, self.col, forbidden)
         ):
             return forbidden
         elif possible_moves:
@@ -246,9 +252,10 @@ class Ghost:
 
         spr: pygame.Surface
 
+        timer: float = 2.0
         if self.state == GhostState.FRIGHTENED:
             is_flashing: bool = (
-                self.timer < 2.0 and int(self.timer * 4) % 2 == 0
+                self.timer < timer and int(self.timer * 4) % 2 == 0
             )
             spr = sp.vulnerable(white=is_flashing, frame=self.frame)
 
@@ -316,8 +323,16 @@ class Ghost:
                 queue.append(nxt)
         return None
 
+    def chase_target(
+        self,
+        pac: PacMan,
+        blinky: Ghost | None
+    ) -> Position:
+        """Target Pacman."""
+        return Position(pac.row, pac.col)
+
     def die(self) -> None:
-        """trigegered when pac-man eats this ghost"""
+        """Trigegered when pac-man eats this ghost."""
         self.state = GhostState.DEAD_PATHING
         self.target = self.spawn_pos  # set target back to their home corner
 
@@ -334,7 +349,12 @@ class Blinky(Ghost):
     def _spawn_tile(self) -> Position:
         return self._corner(top=True, left=False)
 
-    def chase_target(self, pac, blinky=None) -> Position:
+    def chase_target(
+        self,
+        pac: PacMan,
+        blinky: Ghost | None = None
+    ) -> Position:
+        """Target Pacman directly."""
         return Position(pac.row, pac.col)
 
 
@@ -351,9 +371,10 @@ class Pinky(Ghost):
     def _spawn_tile(self) -> Position:
         return self._corner(top=True, left=True)
 
-    def chase_target(self, pac, blinky=None) -> Position:
-        """chase target: 2 tiles ahead of the pac-man"""
-
+    def chase_target(
+        self, pac: PacMan, blinky: Ghost | None = None
+    ) -> Position:
+        """Chase target: 2 tiles ahead of the pac-man."""
         dx, dy = VECTORS[pac.facing]
         if pac.facing == Direction.North:
             dx -= 1
@@ -380,7 +401,10 @@ class Inky(Ghost):
     def _spawn_tile(self) -> Position:
         return self._corner(top=False, left=False)
 
-    def chase_target(self, pac, blinky=None) -> Position:
+    def chase_target(self, pac: PacMan, blinky: Ghost | None) -> Position:
+        """Chase pacman based on Blink & Inky."""
+        if blinky is None:
+            return Position(0, 0)
         dx, dy = VECTORS[pac.facing]
         if pac.facing == Direction.North:
             dx = -1
@@ -410,10 +434,13 @@ class Clyde(Ghost):
     def _spawn_tile(self) -> Position:
         return self._corner(top=False, left=True)
 
-    def chase_target(self, pac, Blinky=None) -> Position:
+    def chase_target(
+        self, pac: PacMan, blinky: Ghost | None = None
+    ) -> Position:
+        """Chase pacman but shy."""
         dist_sq = (self.row - pac.row) ** 2 + (self.col - pac.col) ** 2
 
-        if dist_sq < 8 ** 2:
+        if dist_sq < 3**2:
             return self._spawn_tile()
         return Position(pac.row, pac.col)
 

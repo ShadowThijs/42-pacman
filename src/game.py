@@ -14,8 +14,7 @@ from .models import (
     Colors,
     Config,
     Direction,
-    Position,
-    State,
+    # State,
 )
 from .player import PacMan
 from .sprites import Sprites
@@ -41,7 +40,7 @@ class Game:
         self.pac: PacMan
         self.sprites: Sprites
         self.score: int = 0
-        self.stack: list[State]
+        # self.stack: list[State]
         self.ghosts: list[Ghost] = []
 
     def init_game(self, width: int, height: int, cfg: Config) -> None:
@@ -139,20 +138,8 @@ class Game:
         ]
         return random.sample(eligible, min(self.config.pacgum, len(eligible)))
 
-    @property
-    def current(self) -> State:
-        return self.stack[-1]
-
-    def push(self, state: State) -> None:
-        self.stack.append(state)
-
-    def pop(self) -> None:
-        self.stack.pop()
-
-    def replace(self, state: State) -> None:
-        self.stack[-1] = state
-
     def quit(self) -> None:
+        """Quit application."""
         self.running = False
 
     def run(self) -> None:
