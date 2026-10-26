@@ -12,6 +12,10 @@ CELL_SIZE: int = 36
 WALL_THICKNESS: int = 2
 OFFSET: tuple[int, int] = (50, 50)
 
+# Seconds after Pac-Man's first input at which each ghost is released:
+# Blinky (red), Pinky (pink), Inky (cyan), Clyde (orange).
+DEFAULT_GHOST_RELEASE_DELAYS: list[float] = [0.0, 2.0, 4.0, 6.0]
+
 
 def clean_json(text: str) -> str:
     """Strip #, // and /* */ comments from JSON text."""
@@ -47,6 +51,7 @@ class Config:
     pp_ghost: int
     seed: int
     level_max_time: int
+    ghost_release_delays: list[float]
 
     DEFAULTS: ClassVar[dict[str, Any]] = {
         "highscore_db": "database.db",
@@ -60,6 +65,7 @@ class Config:
         "pp_ghost": 200,
         "seed": 42,
         "level_max_time": 90,
+        "ghost_release_delays": DEFAULT_GHOST_RELEASE_DELAYS,
     }
 
     def __init__(self, cfg_json: str) -> None:
@@ -82,6 +88,29 @@ class Config:
                 print(f"Invalid type for '{key}', using default: {default!r}")
                 value = default
             setattr(self, key, value)
+
+        self.ghost_release_delays = self._release_delays()
+
+    def _release_delays(self) -> list[float]:
+        """Return a validated four-ghost release schedule."""
+        delays = self.ghost_release_delays
+        valid: bool = (
+            isinstance(delays, list)
+            and len(delays) == 4
+            and all(
+                isinstance(d, (int, float))
+                and not isinstance(d, bool)
+                and d >= 0
+                for d in delays
+            )
+        )
+        if not valid:
+            print(
+                "Invalid 'ghost_release_delays', using default: "
+                f"{DEFAULT_GHOST_RELEASE_DELAYS!r}"
+            )
+            return list(DEFAULT_GHOST_RELEASE_DELAYS)
+        return [float(d) for d in delays]
 
 
 class Colors:

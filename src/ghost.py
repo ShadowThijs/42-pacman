@@ -63,6 +63,8 @@ class Ghost:
         self.maze: MazeGenerator = maze
         self.config: Config = cfg
         self.base_speed: int = speed
+        # seconds after Pac-Man's first input before this ghost appears
+        self.release_delay: float = 0.0
 
         # start by going to corners
         self.state: GhostState = GhostState.SCATTER
@@ -157,7 +159,7 @@ class Ghost:
                 self.state = GhostState.DEAD_WAITING
                 # wait 5 seconds before reviving
                 self.timer = self.RESPAWN_DELAY
-                self.progess = 0.0
+                self.progress = 0.0
                 return
 
             self._decide()
@@ -447,9 +449,12 @@ class Clyde(Ghost):
 
 def spawn_ghosts(maze: MazeGenerator, cfg: Config) -> list[Ghost]:
     """Create the four ghosts, one in each maze corner."""
-    return [
+    ghosts: list[Ghost] = [
         Blinky(maze, cfg),
         Pinky(maze, cfg),
         Inky(maze, cfg),
         Clyde(maze, cfg),
     ]
+    for ghost, delay in zip(ghosts, cfg.ghost_release_delays):
+        ghost.release_delay = delay
+    return ghosts

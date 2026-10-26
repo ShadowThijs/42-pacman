@@ -25,7 +25,9 @@ SWITCH_DT: float = 0.2
 class PacMan:
     """Pacman player class."""
 
-    def __init__(self, x: float, y: float, speed: int = 80) -> None:
+    def __init__(
+        self, x: float, y: float, speed: int = 80, lives: int = 3
+    ) -> None:
         """Initialize Pacman in the tile containing pixel (x, y)."""
         self.speed: int = speed
         self.row: int
@@ -38,10 +40,27 @@ class PacMan:
         self.frame: int = 1
         self.anim_t: float = 0.0
         self.anim_frame: int = 0
+        self.lives: int = lives
 
     def queue(self, direction: int) -> None:
         """Buffer a direction change, applied at the next tile center."""
         self.next_direction = direction
+
+    def respawn(self, x: float, y: float) -> None:
+        """Place Pac-Man back at pixel (x, y), motionless.
+
+        Clearing ``progress`` is essential: a collision usually happens
+        mid-tile, and a non-zero progress with no direction would stop
+        ``update`` from ever calling ``_decide`` again.
+        """
+        self.row, self.col = self._tile_at(x, y)
+        self.progress = 0.0
+        self.direction = None
+        self.next_direction = None
+        self.facing = Direction.East
+        self.anim_t = 0.0
+        self.anim_frame = 0
+        self.frame = 1
 
     def update(
         self,
@@ -53,6 +72,10 @@ class PacMan:
         eaten: int = 0
         rev_dir = self.direction
         rev_next = self.next_direction
+        if self.direction is None:
+            # A stopped Pac-Man belongs on a tile centre, otherwise
+            # buffered input would never be resolved by ``_decide``.
+            self.progress = 0.0
         if (
             self.progress > 0.0
             and rev_dir is not None

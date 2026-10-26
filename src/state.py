@@ -207,7 +207,6 @@ if __name__ == "__main__":
     first: State = State("first", game)
     second: State = State("second", game)
 
-    @staticmethod
     def _test() -> None:
         print("test")
 

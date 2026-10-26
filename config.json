@@ -13,6 +13,9 @@
   "pp_pacgum": 10,
   "pp_super_pacgum": 50,
   "pp_ghost": 200,
+  /* Seconds after Pac-Man's first input before each ghost is released:
+   * Blinky (red), Pinky (pink), Inky (cyan), Clyde (orange). */
+  "ghost_release_delays": [0.0, 2.0, 4.0, 6.0],
   "seed": 42069,
   "level_max_time": 90
 }
