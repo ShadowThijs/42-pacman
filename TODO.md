@@ -34,9 +34,9 @@
   Add scatter/chase phase timers.
 - **Spawn tiles can be walls:** `_spawn_tile()` returns a literal grid corner.
   Snap each ghost to the nearest open tile, or define a proper ghost house.
-- **Spawn search robustness:** `_player_spawn()` uses `cfg.width`/`cfg.height`
-  instead of the real maze size and can raise `StopIteration`. Validate the
-  chosen tile and use the actual maze dimensions.
+- **Spawn search robustness:** `_player_spawn()` uses the config's width and
+  height instead of the real maze size and can raise `StopIteration`. Validate
+  the chosen tile and use the actual maze dimensions.
 - **Death presentation:** `Sprites.death()` exists but is unused. Add a short
   death animation and a "READY!" pause before respawn and ghost release.
 - **HUD / progression:** lives, score, level, and `level_max_time` are never

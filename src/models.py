@@ -103,6 +103,10 @@ class Config:
                 and d >= 0
                 for d in delays
             )
+            and all(
+                earlier <= later
+                for earlier, later in zip(delays, delays[1:])
+            )
         )
         if not valid:
             print(
