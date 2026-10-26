@@ -42,6 +42,8 @@ class Game:
         self.score: int = 0
         # self.stack: list[State]
         self.ghosts: list[Ghost] = []
+        self.to_spawn: list[Ghost] = []
+        self.spawn_timer: float = 0.0
 
     def init_game(self, width: int, height: int, cfg: Config) -> None:
         """Initialize game."""
@@ -78,7 +80,9 @@ class Game:
             ox + sc * CELL_SIZE + CELL_SIZE / 2,
             oy + sr * CELL_SIZE + CELL_SIZE / 2,
         )
-        self.ghosts = spawn_ghosts(self.current_maze, self.config)
+        self.ghosts = []
+        self.to_spawn = spawn_ghosts(self.current_maze, self.config)
+        self.spawn_timer = 0.0
         self.pacgums = self.pacgum_locations(self.current_maze)
 
     def render_level(self, maze: MazeGenerator) -> None:
@@ -142,6 +146,10 @@ class Game:
         """Quit application."""
         self.running = False
 
+    def die(self) -> None:
+        """pac-man was caught by ghost"""
+        self.running = False
+
     def run(self) -> None:
         """Run the game."""
         while self.running:
@@ -169,10 +177,18 @@ class Game:
             eaten: int = self.pac.update(
                 dt, self.current_maze.maze, self.pacgums
             )
-            blinky = self.ghosts[0]
+            self.spawn_timer += dt
+            if self.to_spawn and self.spawn_timer >= 2.0:
+                self.ghosts.append(self.to_spawn.pop(0))
+                self.spawn_timer = 0.0
+
+            blinky = self.ghosts[0] if self.ghosts else None
             for ghost in self.ghosts:
                 ghost.target = ghost.chase_target(self.pac, blinky)
                 ghost.update(dt)
+                if ghost.row == self.pac.row and ghost.col == self.pac.col:
+                    self.die()
+                    break
                 ghost.draw(self.screen, self.sprites)
             self.score += eaten * self.config.pp_pacgum
             if not self.pacgums:
