@@ -26,7 +26,7 @@ class PacMan:
     """Pacman player class."""
 
     def __init__(
-        self, x: float, y: float, speed: int = 80, lives: int = 3
+        self, x: float, y: float, speed: int = 85, lives: int = 3
     ) -> None:
         """Initialize Pacman in the tile containing pixel (x, y)."""
         self.speed: int = speed
