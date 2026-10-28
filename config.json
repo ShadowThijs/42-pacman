@@ -5,7 +5,7 @@
    * And it has multiple lines
   */
   "highscore_db": "database.db",
-  "level": "",
+  "level": 1,
   "width": 20,
   "height": 20,
   "lives": 3,

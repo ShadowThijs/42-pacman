@@ -1,5 +1,7 @@
-"""Exports of the ui components."""
+"""Exports of the UI package."""
 
+from .app import App
 from .components import Button
+from .theme import Theme
 
-__all__ = ["Button"]
+__all__ = ["App", "Button", "Theme"]

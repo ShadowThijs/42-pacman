@@ -1,11 +1,11 @@
-"""Pygame setup."""
+"""Pygame setup and the state-driven main loop."""
 
 import random
-import sys
 
 import pygame
 from mazegenerator import MazeGenerator
 
+from .db import Database
 from .ghost import Ghost, spawn_ghosts
 from .models import (
     CELL_SIZE,
@@ -14,21 +14,21 @@ from .models import (
     Colors,
     Config,
     Direction,
-    # State,
 )
 from .player import PacMan
 from .sprites import Sprites
+from .state import StateManager
 
 
 class Game:
     """Game class.
 
-    Holds pygame functions and setup
+    Holds pygame functions, the play session and the state stack.
     """
 
     def __init__(self) -> None:
         """Init Game class."""
-        self.running = True
+        self.running: bool = True
         self.width: int
         self.height: int
         self.screen: pygame.Surface
@@ -40,26 +40,48 @@ class Game:
         self.pac: PacMan
         self.sprites: Sprites
         self.score: int = 0
-        # self.stack: list[State]
+        self.level: int = 1
+        self.game_over: bool = False
+        self.db: Database | None = None
+        self.states: StateManager = StateManager(self)
         self.ghosts: list[Ghost] = []
         self.to_spawn: list[Ghost] = []
         self.spawn_timer: float = 0.0
         self.first_input: bool = False
 
-    def init_game(self, width: int, height: int, cfg: Config) -> None:
-        """Initialize game."""
+    def init_game(
+        self,
+        width: int,
+        height: int,
+        cfg: Config,
+        db: Database | None = None,
+    ) -> None:
+        """Initialize pygame and the game session without starting the loop."""
         self.config = cfg
+        self.db = db
+        self.running = True
         self.start_level = False
-        self.new_level(cfg)
-        self.start_level = True
-        self.sprites = Sprites()
+        self.game_over = False
+        self.score = 0
+        self.level = 1
+        self.width = width
+        self.height = height
+
         pygame.init()
         self.screen = pygame.display.set_mode((width, height))
-        pygame.display.set_caption("42PacMan")
-
+        pygame.display.set_caption("42 PAC-MAN")
         self.clock = pygame.time.Clock()
+        self.sprites = Sprites()
+        self.states = StateManager(self)
 
-        self.run()
+    def start_new_game(self) -> None:
+        """Reset score, level and lives, then build a fresh maze."""
+        self.score = 0
+        self.level = 1
+        self.game_over = False
+        self.start_level = False
+        self.new_level(self.config)
+        self.start_level = True
 
     def reset_death(self) -> None:
         """Respawn Pac-Man and reset the ghosts after a death."""
@@ -167,7 +189,7 @@ class Game:
         """Pac-Man was caught by a ghost."""
         self.pac.lives -= 1
         if self.pac.lives <= 0:
-            self.running = False
+            self.game_over = True
             return
         self.reset_death()
 
@@ -187,53 +209,81 @@ class Game:
         ):
             self.ghosts.append(self.to_spawn.pop(0))
 
-    def run(self) -> None:
-        """Run the game."""
-        while self.running:
-            dt: float = min(self.clock.tick(60) / 1000.0, 0.05)
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    pygame.quit()
-                    sys.exit()
-                if event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_q:
-                        pygame.quit()
-                        sys.exit()
-                    if event.key == pygame.K_r:
-                        self.new_level(self.config)
-                    if event.key in (pygame.K_UP, pygame.K_w):
-                        self.queue_direction(Direction.North)
-                    if event.key in (pygame.K_DOWN, pygame.K_s):
-                        self.queue_direction(Direction.South)
-                    if event.key in (pygame.K_LEFT, pygame.K_a):
-                        self.queue_direction(Direction.West)
-                    if event.key in (pygame.K_RIGHT, pygame.K_d):
-                        self.queue_direction(Direction.East)
-            self.screen.fill(Colors.black)
-            self.render_level(self.current_maze)
-            eaten: int = self.pac.update(
-                dt, self.current_maze.maze, self.pacgums
-            )
-            self.release_ghosts(dt)
+    def update(self, dt: float) -> None:
+        """Advance one gameplay frame.
 
-            blinky = self.ghosts[0] if self.ghosts else None
-            for ghost in self.ghosts:
-                ghost.target = ghost.chase_target(self.pac, blinky)
-                ghost.update(dt)
-                if (
-                    ghost.x - CELL_SIZE / 2 <= self.pac.x
-                    and ghost.x + CELL_SIZE / 2 >= self.pac.x
-                ) and (
-                    ghost.y - CELL_SIZE / 2 <= self.pac.y
-                    and ghost.y + CELL_SIZE / 2 >= self.pac.y
-                ):
-                    self.die()
+        This is the original gameplay loop, unchanged apart from the input
+        handling (which now lives in the game screen state) and the level
+        counter used by the HUD.
+        """
+        eaten: int = self.pac.update(
+            dt, self.current_maze.maze, self.pacgums
+        )
+        self.release_ghosts(dt)
+
+        blinky = self.ghosts[0] if self.ghosts else None
+        for ghost in self.ghosts:
+            ghost.target = ghost.chase_target(self.pac, blinky)
+            ghost.update(dt)
+            if (
+                ghost.x - CELL_SIZE / 2 <= self.pac.x
+                and ghost.x + CELL_SIZE / 2 >= self.pac.x
+            ) and (
+                ghost.y - CELL_SIZE / 2 <= self.pac.y
+                and ghost.y + CELL_SIZE / 2 >= self.pac.y
+            ):
+                self.die()
+                break
+        self.score += eaten * self.config.pp_pacgum
+        if not self.pacgums:
+            self.level += 1
+            self.new_level(self.config)
+
+    def draw_actors(self, screen: pygame.Surface) -> None:
+        """Draw every ghost and Pac-Man on top of the maze."""
+        for ghost in self.ghosts:
+            ghost.draw(screen, self.sprites)
+        self.pac.draw(screen, self.sprites)
+
+    def leaderboard(self, limit: int = 10) -> list[tuple[str, int]]:
+        """Return the best scores from the database."""
+        if self.db is None:
+            return []
+        return self.db.get_leaderboard(limit)
+
+    def best_score(self) -> int:
+        """Return the best recorded score, or zero without a database."""
+        entries: list[tuple[str, int]] = self.leaderboard(1)
+        if not entries:
+            return 0
+        return entries[0][1]
+
+    def record_score(self, name: str, score: int | None = None) -> None:
+        """Store the current score in the database, if one is attached."""
+        if self.db is not None:
+            self.db.add_leaderboard_entry(
+                name, self.score if score is None else score
+            )
+
+    def run(self) -> None:
+        """Run the state-driven main loop."""
+        try:
+            while self.running:
+                dt: float = min(self.clock.tick(60) / 1000.0, 0.05)
+                for event in pygame.event.get():
+                    if event.type == pygame.QUIT:
+                        self.quit()
+                        break
+                    self.states.handle_event(event)
+                if not self.running:
                     break
-                ghost.draw(self.screen, self.sprites)
-            self.score += eaten * self.config.pp_pacgum
-            if not self.pacgums:
-                self.new_level(self.config)
-            self.pac.draw(self.screen, self.sprites)
-            pygame.display.flip()
-        pygame.quit()
-        sys.exit()
+                if not self.states:
+                    self.running = False
+                    break
+                self.states.update(dt)
+                if not self.running:
+                    break
+                self.states.draw(self.screen)
+                pygame.display.flip()
+        finally:
+            pygame.quit()

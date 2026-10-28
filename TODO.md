@@ -37,24 +37,22 @@
 - **Spawn search robustness:** `_player_spawn()` uses the config's width and
   height instead of the real maze size and can raise `StopIteration`. Validate
   the chosen tile and use the actual maze dimensions.
-- **Death presentation:** `Sprites.death()` exists but is unused. Add a short
-  death animation and a "READY!" pause before respawn and ghost release.
-- **HUD / progression:** lives, score, level, and `level_max_time` are never
-  drawn or used. Add a HUD and implement the level timer.
-- **Highscores:** `Database` only prints the leaderboard at startup. Write the
-  score on game over and add a leaderboard screen.
+- **Death presentation:** DONE. A short `DyingState` animation plays before
+  respawn, and `READY!` is shown until the next direction input.
+- **HUD / progression:** DONE for score, high score, level and lives. The
+  `level_max_time` timer is still unused.
+- **Highscores:** DONE. Scores are saved after game over and the leaderboard
+  screen reads the top ten through `db.py`.
 
 ### Architecture / maintainability
 
 - **Duplicated helpers:** `VECTORS`, `REVERSE`, `SWITCH_DT`, and `_open()` are
   duplicated in `player.py` and `ghost.py`. Move them to `models.py` or a
   shared `movement.py`.
-- **Dead state system:** `src/state.py` and `STATE.md` describe a state stack
-  that `Game.run` does not use. Integrate the menu/pause/death screens or
-  remove the duplicated plan.
-- **Quit flow:** `run()` calls `pygame.quit()`/`sys.exit()` from several
-  places, making the game hard to test or embed. Use one `running = False`
-  exit path with `try/finally`.
+- **Dead state system:** DONE. `Game.run` now drives `StateManager`; menus,
+  pause, death and name entry are real states.
+- **Quit flow:** DONE. `Game.run` has one `running = False` path and closes
+  pygame in `finally`.
 - **Init-time attributes:** `Game.__init__` leaves many attributes
   annotation-only until `init_game()`. Pass width/height/config into the
   constructor or give them safe defaults.
