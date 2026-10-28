@@ -71,20 +71,24 @@ class Config:
     def __init__(self, cfg_json: str) -> None:
         """Init Config."""
         data: dict[str, Any] = {}
+        loaded: bool = False
 
         if cfg_json == "":
-            print("Missing config.json")
+            print("No config file provided, using defaults")
         elif not Path(cfg_json).is_file():
-            print(f"Config file not found: {cfg_json}")
+            print(
+                f"Config file not found: {cfg_json}, using defaults"
+            )
         else:
             with open(cfg_json) as f:
                 data = json.loads(clean_json(f.read()))
+            loaded = True
 
         for key, default in self.DEFAULTS.items():
             value = data.get(key, default)
-            if key not in data:
+            if loaded and key not in data:
                 print(f"Missing '{key}' in config, using default: {default!r}")
-            elif not isinstance(value, type(default)):
+            elif loaded and not isinstance(value, type(default)):
                 print(f"Invalid type for '{key}', using default: {default!r}")
                 value = default
             setattr(self, key, value)
