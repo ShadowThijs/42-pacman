@@ -239,11 +239,16 @@ class Game:
             self.level += 1
             self.new_level(self.config)
 
-    def draw_actors(self, screen: pygame.Surface) -> None:
-        """Draw every ghost and Pac-Man on top of the maze."""
+    def draw_actors(
+        self,
+        screen: pygame.Surface,
+        include_pacman: bool = True,
+    ) -> None:
+        """Draw ghosts, and optionally Pac-Man, on top of the maze."""
         for ghost in self.ghosts:
             ghost.draw(screen, self.sprites)
-        self.pac.draw(screen, self.sprites)
+        if include_pacman:
+            self.pac.draw(screen, self.sprites)
 
     def leaderboard(self, limit: int = 10) -> list[tuple[str, int]]:
         """Return the best scores from the database."""

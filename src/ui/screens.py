@@ -295,6 +295,7 @@ class GameScreen(State):
         self._life_icon: pg.Surface = pg.transform.smoothscale(
             game.sprites.pacman(Direction.East, 1), (20, 20)
         )
+        self._frame_without_pacman: pg.Surface | None = None
 
     def handle_event(self, event: pg.event.Event) -> None:
         """Translate input into movement, pause, or quit."""
@@ -318,7 +319,12 @@ class GameScreen(State):
 
     def _start_death(self, position: tuple[float, float]) -> None:
         """Freeze the last frame and play the death animation."""
-        background: pg.Surface = self.game.screen.copy()
+        source: pg.Surface = (
+            self._frame_without_pacman
+            if self._frame_without_pacman is not None
+            else self.game.screen
+        )
+        background: pg.Surface = source.copy()
         self.app.last_game_frame = background
         on_done: Callable[[], None] = (
             self.app.game_over
@@ -424,8 +430,18 @@ class GameScreen(State):
         screen.fill(Colors.black)
         self._draw_top_hud(screen)
         self.game.render_level(self.game.current_maze)
-        self.game.draw_actors(screen)
+        self.game.draw_actors(screen, include_pacman=False)
         self._draw_bottom_hud(screen)
+        if (
+            self._frame_without_pacman is None
+            or self._frame_without_pacman.get_size()
+            != screen.get_size()
+        ):
+            self._frame_without_pacman = pg.Surface(
+                screen.get_size()
+            )
+        self._frame_without_pacman.blit(screen, (0, 0))
+        self.game.pac.draw(screen, self.game.sprites)
         if not self.game.first_input:
             left, top, right, bottom = self._maze_bounds()
             self.theme.draw_text(
@@ -465,9 +481,7 @@ class DyingState(State):
         self.elapsed: float = 0.0
         self._done: bool = False
         self._frames: list[pg.Surface] = [
-            pg.transform.smoothscale(
-                game.sprites.death(frame), (48, 48)
-            )
+            game.sprites.death(frame)
             for frame in range(10)
         ]
         self._duration: float = 10 * DEATH_FRAME_TIME + DEATH_HOLD
