@@ -1,9 +1,15 @@
 """Ghost class."""
 
+from __future__ import annotations
+
+import random
 from collections import deque
+from enum import Enum, auto
 
 import pygame
 from mazegenerator import MazeGenerator
+
+from src.player import PacMan
 
 from .models import CELL_SIZE, OFFSET, Config, Direction, Position
 from .sprites import Sprites
@@ -23,6 +29,17 @@ REVERSE: dict[int, int] = {
 }
 
 SWITCH_DT: float = 0.2
+# Seconds between each ghost's release after Pac-Man's first input.
+GHOST_RELEASE_INTERVAL: float = 2.0
+
+
+class GhostState(Enum):
+    """Ghost states."""
+    CHASE = auto()  # normal behaviour, hunting pac-man
+    SCATTER = auto()  # normal behaviour, going to their corner
+    FRIGHTENED = auto()  # blue and edible (super gum)
+    DEAD_PATHING = auto()  # floating eyes returning to spawn
+    DEAD_WAITING = auto()  # reached corner, waiting for 5 sec to respawn
 
 
 class Ghost:
@@ -34,6 +51,8 @@ class Ghost:
     """
 
     COLOR: str = "red"
+    RESPAWN_DELAY: float = 5.0  # for 5-10s before respawining
+    FRIGHTENED_DURATION: float = 7.0  # how long the ghosts stay blue
 
     def __init__(
         self,
@@ -45,17 +64,43 @@ class Ghost:
         """Initialize the ghost at its spawn tile (or `spawn` if given)."""
         self.maze: MazeGenerator = maze
         self.config: Config = cfg
-        self.speed: int = speed
-        tile: Position = spawn if spawn is not None else self._spawn_tile()
-        self.row: int = tile.row
-        self.col: int = tile.col
+        self.base_speed: int = speed
+        # seconds after Pac-Man's first input before this ghost appears
+        self.release_delay: float = 0.0
+
+        # start by going to corners
+        self.state: GhostState = GhostState.SCATTER
+        self.timer: float = 0.0
+
+        # save the spawn position so we can return when we're dead
+        self.spawn_pos: Position = (
+            spawn if spawn is not None else self._spawn_tile()
+        )
+        self.row: int = self.spawn_pos.row
+        self.col: int = self.spawn_pos.col
+
         self.progress: float = 0.0
         self.direction: int | None = None
         self.facing: int = Direction.East
         self.frame: int = 1
         self.anim_t: float = 0.0
         self.anim_frame: int = 0
-        self.target: Position = tile
+
+        # target start as the spawn position
+        self.target: Position = self.spawn_pos
+
+    def reset_to_spawn(self) -> None:
+        """Resets ghosts to spawn after pacman dies."""
+        self.state = GhostState.SCATTER
+        self.timer = 0.0
+
+        self.row = self.spawn_pos.row
+        self.col = self.spawn_pos.col
+        self.target = self.spawn_pos
+
+        self.progress = 0.0
+        self.direction = None
+        self.facing = Direction.East
 
     def _spawn_tile(self) -> Position:
         """Start tile of this ghost type; default is the top-left corner."""
@@ -71,19 +116,54 @@ class Ghost:
 
     def update(self, dt: float) -> None:
         """Advance the ghost one frame toward its target."""
+        # deacrease timer if active, and revert state when time is up
+        if self.timer > 0:
+            self.timer -= dt
+            if self.timer <= 0:
+                self.timer = 0.0
+                if (
+                    self.state in (
+                        GhostState.FRIGHTENED,
+                        GhostState.DEAD_WAITING
+                    )
+                ):
+                    self.state = GhostState.CHASE
+
+        if self.state == GhostState.DEAD_WAITING:
+            return
+
         if self.progress == 0.0:
             self._decide()
 
         if self.direction is None:
             return
 
-        step: float = self.speed * dt / CELL_SIZE
+        # use current_speed instead of based on state (slower for frightened)
+        current_speed: float = float(self.base_speed)
+        if self.state == GhostState.FRIGHTENED:
+            current_speed *= 0.6  # 40% slower when edible
+        elif self.state == GhostState.DEAD_PATHING:
+            current_speed *= 2.0
+
+        step: float = current_speed * dt / CELL_SIZE
         self.progress += step
         while self.progress >= 1.0:
             self.progress -= 1.0
             dx, dy = VECTORS[self.direction]
             self.col += dx
             self.row += dy
+
+            if (
+                (self.state == GhostState.DEAD_PATHING)
+                and (self.row == self.spawn_pos.row)
+                and (self.col == self.spawn_pos.col)
+            ):
+                self.state = GhostState.DEAD_WAITING
+                # wait 5 seconds before reviving
+                self.timer = self.RESPAWN_DELAY
+                self.progress = 0.0
+                return
+
             self._decide()
             if self.direction is None:
                 self.progress = 0.0
@@ -97,11 +177,17 @@ class Ghost:
 
     def _decide(self) -> None:
         """Pick the direction on the shortest path to the target."""
-        nxt: int | None = self._shortest_direction(
-            self.maze.maze, Position(self.row, self.col), self.target
-        )
-        if nxt is None:
-            nxt = self._nearest_direction()
+        nxt: int | None = None
+
+        if self.state == GhostState.FRIGHTENED:
+            nxt = self._random_direction()
+        else:
+            nxt = self._shortest_direction(
+                self.maze.maze, Position(self.row, self.col), self.target
+            )
+
+            if nxt is None:
+                nxt = self._nearest_direction()
         if nxt is not None:
             self.direction = nxt
             self.facing = nxt
@@ -140,9 +226,48 @@ class Ghost:
             return forbidden
         return best
 
+    def _random_direction(self) -> int | None:
+        """Used in frightened state to wander randomly at intersections."""
+        forbidden: int | None = (
+            REVERSE[self.direction] if self.direction is not None else None
+        )
+        possible_moves: list[int] = []
+
+        for direction in VECTORS:
+            if direction == forbidden:
+                continue
+            if self._open(self.maze.maze, self.row, self.col, direction):
+                possible_moves.append(direction)
+
+        if (
+            not possible_moves
+            and forbidden is not None
+            and self._open(self.maze.maze, self.row, self.col, forbidden)
+        ):
+            return forbidden
+        elif possible_moves:
+            return random.choice(possible_moves)
+        return None
+
     def draw(self, screen: pygame.Surface, sp: Sprites) -> None:
         """Draw the ghost."""
-        spr: pygame.Surface = sp.ghost(self.COLOR, self.facing, self.frame)
+        if self.state == GhostState.DEAD_WAITING:
+            return
+
+        spr: pygame.Surface
+
+        timer: float = 2.0
+        if self.state == GhostState.FRIGHTENED:
+            is_flashing: bool = (
+                self.timer < timer and int(self.timer * 4) % 2 == 0
+            )
+            spr = sp.vulnerable(white=is_flashing, frame=self.frame)
+
+        elif self.state == GhostState.DEAD_PATHING:
+            spr = sp.eyes(self.facing)
+
+        else:
+            spr = sp.ghost(self.COLOR, self.facing, self.frame)
         screen.blit(spr, (self.x - 16, self.y - 16))
 
     @property
@@ -202,6 +327,19 @@ class Ghost:
                 queue.append(nxt)
         return None
 
+    def chase_target(
+        self,
+        pac: PacMan,
+        blinky: Ghost | None
+    ) -> Position:
+        """Target Pacman."""
+        return Position(pac.row, pac.col)
+
+    def die(self) -> None:
+        """Trigegered when pac-man eats this ghost."""
+        self.state = GhostState.DEAD_PATHING
+        self.target = self.spawn_pos  # set target back to their home corner
+
 
 class Blinky(Ghost):
     """Blinky (red) ghost.
@@ -215,7 +353,12 @@ class Blinky(Ghost):
     def _spawn_tile(self) -> Position:
         return self._corner(top=True, left=False)
 
-    def chase_target(self, pac, blinky=None) -> Position:
+    def chase_target(
+        self,
+        pac: PacMan,
+        blinky: Ghost | None = None
+    ) -> Position:
+        """Target Pacman directly."""
         return Position(pac.row, pac.col)
 
 
@@ -232,9 +375,10 @@ class Pinky(Ghost):
     def _spawn_tile(self) -> Position:
         return self._corner(top=True, left=True)
 
-    def chase_target(self, pac, blinky=None) -> Position:
-        """chase target: 2 tiles ahead of the pac-man"""
-
+    def chase_target(
+        self, pac: PacMan, blinky: Ghost | None = None
+    ) -> Position:
+        """Chase target: 2 tiles ahead of the pac-man."""
         dx, dy = VECTORS[pac.facing]
         if pac.facing == Direction.North:
             dx -= 1
@@ -261,7 +405,10 @@ class Inky(Ghost):
     def _spawn_tile(self) -> Position:
         return self._corner(top=False, left=False)
 
-    def chase_target(self, pac, blinky=None) -> Position:
+    def chase_target(self, pac: PacMan, blinky: Ghost | None) -> Position:
+        """Chase pacman based on Blink & Inky."""
+        if blinky is None:
+            return Position(0, 0)
         dx, dy = VECTORS[pac.facing]
         if pac.facing == Direction.North:
             dx = -1
@@ -291,19 +438,25 @@ class Clyde(Ghost):
     def _spawn_tile(self) -> Position:
         return self._corner(top=False, left=True)
 
-    def chase_target(self, pac, Blinky=None) -> Position:
+    def chase_target(
+        self, pac: PacMan, blinky: Ghost | None = None
+    ) -> Position:
+        """Chase pacman but shy."""
         dist_sq = (self.row - pac.row) ** 2 + (self.col - pac.col) ** 2
 
-        if dist_sq < 8 ** 2:
+        if dist_sq < 3**2:
             return self._spawn_tile()
         return Position(pac.row, pac.col)
 
 
 def spawn_ghosts(maze: MazeGenerator, cfg: Config) -> list[Ghost]:
     """Create the four ghosts, one in each maze corner."""
-    return [
+    ghosts: list[Ghost] = [
         Blinky(maze, cfg),
         Pinky(maze, cfg),
         Inky(maze, cfg),
         Clyde(maze, cfg),
     ]
+    for index, ghost in enumerate(ghosts):
+        ghost.release_delay = (index + 1) * GHOST_RELEASE_INTERVAL
+    return ghosts

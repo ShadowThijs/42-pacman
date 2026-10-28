@@ -25,6 +25,9 @@ class Sprites:
         """Init sprite loader with base resources directory."""
         self.base: Path = Path(base)
         self._cache: dict[Path, pygame.Surface] = {}
+        self._pacman_cache: dict[
+            tuple[int, int], pygame.Surface
+        ] = {}
 
     def _load(self, rel: str) -> pygame.Surface:
         """Load and cache a sprite surface by relative path."""
@@ -35,7 +38,51 @@ class Sprites:
 
     def pacman(self, direction: int, frame: int = 1) -> pygame.Surface:
         """Get pacman sprite for a direction and animation frame (1-2)."""
-        return self._load(f"pacman/{_DIR_LETTER[direction]}-{frame}.svg")
+        key: tuple[int, int] = (direction, frame)
+        cached: pygame.Surface | None = self._pacman_cache.get(key)
+        if cached is not None:
+            return cached
+        sprite: pygame.Surface = self._load(
+            f"pacman/{_DIR_LETTER[direction]}-{frame}.svg"
+        )
+        if frame == 2:
+            sprite = self._align_open_mouth(direction, sprite)
+        self._pacman_cache[key] = sprite
+        return sprite
+
+    def _align_open_mouth(
+        self,
+        direction: int,
+        opened: pygame.Surface,
+    ) -> pygame.Surface:
+        """Keep Pac-Man's trailing edge fixed while his mouth opens.
+
+        The two source frames do not share the same bounding box: the open
+        frame is wider, so drawing both centred makes the body jump
+        backwards by a few pixels.  Align the trailing edge of the open
+        frame with the closed frame instead, letting the mouth open
+        forwards.
+        """
+        closed: pygame.Surface = self._load(
+            f"pacman/{_DIR_LETTER[direction]}-1.svg"
+        )
+        closed_box: pygame.Rect = closed.get_bounding_rect(min_alpha=1)
+        opened_box: pygame.Rect = opened.get_bounding_rect(min_alpha=1)
+        dx: int = 0
+        dy: int = 0
+        if direction == Direction.East:
+            dx = closed_box.left - opened_box.left
+        elif direction == Direction.West:
+            dx = closed_box.right - opened_box.right
+        elif direction == Direction.North:
+            dy = closed_box.bottom - opened_box.bottom
+        else:
+            dy = closed_box.top - opened_box.top
+        aligned: pygame.Surface = pygame.Surface(
+            opened.get_size(), pygame.SRCALPHA
+        )
+        aligned.blit(opened, (dx, dy))
+        return aligned
 
     def ghost(
         self, color: str, direction: int, frame: int = 1
