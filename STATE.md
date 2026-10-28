@@ -84,6 +84,15 @@ line below it:
 Everything uses the ArcadeClassic pixel font when available, with
 ByteBounce or a mono font as fallback.
 
+The display is created with `pygame.SCALED | pygame.RESIZABLE`: the
+820x800 drawing surface stays fixed while SDL scales it to whatever size
+the user drags the window to.
+
+ArcadeClassic has an extremely narrow space glyph, so `Theme.render_text`
+widens word gaps at render time. Pac-Man's open-mouth frames are also
+aligned on their trailing edge, keeping his body still while the mouth
+opens forwards.
+
 ## Scores
 
 - `db_init()` creates the SQLite database configured by `highscore_db`.

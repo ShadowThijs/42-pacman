@@ -68,8 +68,16 @@ class Game:
         self.height = height
 
         pygame.init()
-        self.screen = pygame.display.set_mode((width, height))
-        pygame.display.set_caption("42 PAC-MAN")
+        flags: int = pygame.SCALED | pygame.RESIZABLE
+        try:
+            self.screen = pygame.display.set_mode(
+                (width, height), flags
+            )
+        except pygame.error:
+            self.screen = pygame.display.set_mode(
+                (width, height), pygame.RESIZABLE
+            )
+        pygame.display.set_caption("42 PACMAN")
         self.clock = pygame.time.Clock()
         self.sprites = Sprites()
         self.states = StateManager(self)

@@ -212,11 +212,15 @@ class StartMenuScreen(MenuScreen):
     def draw_decor(self, screen: pg.Surface) -> None:
         """Draw the high score line and the arcade cast."""
         center: int = screen.get_width() // 2
-        label: pg.Surface = self.theme.small_font.render(
-            "HIGH  SCORE", True, self.theme.text_color
+        label: pg.Surface = self.theme.render_text(
+            "HIGH SCORE",
+            self.theme.small_font,
+            self.theme.text_color,
         )
-        score: pg.Surface = self.theme.score_font.render(
-            f"{self._high_score:06d}", True, Colors.yellow
+        score: pg.Surface = self.theme.render_text(
+            f"{self._high_score:06d}",
+            self.theme.score_font,
+            Colors.yellow,
         )
         gap: int = 16
         total: int = label.get_width() + gap + score.get_width()
@@ -385,7 +389,7 @@ class GameScreen(State):
         )
         theme.draw_text(
             screen,
-            "HIGH  SCORE",
+            "HIGH SCORE",
             theme.small_font,
             theme.text_color,
             midtop=(center, 2),
@@ -570,7 +574,7 @@ class NameEntryScreen(State):
 
     def _submit(self) -> None:
         """Save the entered name, falling back to PLAYER."""
-        name: str = self.name.strip() or "PLAYER"
+        name: str = " ".join(self.name.split()) or "PLAYER"
         self.app.submit_score(name, self.score)
 
     def _activate(self) -> None:
@@ -661,8 +665,10 @@ class NameEntryScreen(State):
             center=(center, 330),
         )
         input_y: int = 372
-        text_surface: pg.Surface = self.theme.input_font.render(
-            self.name, True, Colors.yellow
+        text_surface: pg.Surface = self.theme.render_text(
+            self.name,
+            self.theme.input_font,
+            Colors.yellow,
         )
         cursor_width: int = 18
         gap: int = 6 if self.name else 0

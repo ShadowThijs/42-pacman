@@ -7,6 +7,7 @@ from collections.abc import Callable
 import pygame as pg
 
 from ..models import Colors
+from .theme import expand_spaces
 
 
 class Button:
@@ -47,7 +48,9 @@ class Button:
         color: tuple[int, int, int] = Colors.yellow if active else Colors.white
         if not self.enabled:
             color = (80, 80, 80)
-        label: pg.Surface = self.font.render(self.text, True, color)
+        label: pg.Surface = self.font.render(
+            expand_spaces(self.text), True, color
+        )
         label_rect: pg.Rect = label.get_rect(center=self.rect.center)
         screen.blit(label, label_rect)
         if active:

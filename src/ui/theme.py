@@ -8,6 +8,13 @@ import pygame as pg
 
 from src.models import Colors
 
+SPACE_GAP: int = 3
+
+
+def expand_spaces(text: str) -> str:
+    """Widen the very narrow space glyph of the arcade font."""
+    return (" " * SPACE_GAP).join(text.split())
+
 
 def _load_font(size: int) -> font.Font:
     """Load the arcade font, falling back to a bundled/system mono font."""
@@ -48,6 +55,15 @@ class Theme:
         self.title_top: int = 80
         self.footer_margin: int = 20
         self._overlays: dict[tuple[int, int, int], pg.Surface] = {}
+
+    def render_text(
+        self,
+        text: str,
+        text_font: font.Font,
+        color: tuple[int, int, int],
+    ) -> pg.Surface:
+        """Render text with readable arcade word gaps."""
+        return text_font.render(expand_spaces(text), True, color)
 
     def centered_column(
         self,
@@ -106,7 +122,9 @@ class Theme:
         bottomright: tuple[int, int] | None = None,
     ) -> pg.Rect:
         """Render text at one anchor and return its rectangle."""
-        surface: pg.Surface = text_font.render(text, True, color)
+        surface: pg.Surface = self.render_text(
+            text, text_font, color
+        )
         rect: pg.Rect = surface.get_rect()
         if center is not None:
             rect.center = center
@@ -146,15 +164,15 @@ class Theme:
         actual_center: int = (
             screen.get_width() // 2 if center_x is None else center_x
         )
-        main: pg.Surface = self.title_font.render(
-            text, True, actual_color
+        main: pg.Surface = self.render_text(
+            text, self.title_font, actual_color
         )
         rect: pg.Rect = main.get_rect(
             midtop=(actual_center, actual_top)
         )
         if shadow_color is not None:
-            shadow: pg.Surface = self.title_font.render(
-                text, True, shadow_color
+            shadow: pg.Surface = self.render_text(
+                text, self.title_font, shadow_color
             )
             screen.blit(shadow, rect.move(3, 3))
         screen.blit(main, rect)
