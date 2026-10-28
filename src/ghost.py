@@ -29,6 +29,8 @@ REVERSE: dict[int, int] = {
 }
 
 SWITCH_DT: float = 0.2
+# Seconds between each ghost's release after Pac-Man's first input.
+GHOST_RELEASE_INTERVAL: float = 2.0
 
 
 class GhostState(Enum):
@@ -455,6 +457,6 @@ def spawn_ghosts(maze: MazeGenerator, cfg: Config) -> list[Ghost]:
         Inky(maze, cfg),
         Clyde(maze, cfg),
     ]
-    for ghost, delay in zip(ghosts, cfg.ghost_release_delays):
-        ghost.release_delay = delay
+    for index, ghost in enumerate(ghosts):
+        ghost.release_delay = (index + 1) * GHOST_RELEASE_INTERVAL
     return ghosts
