@@ -1,7 +1,7 @@
 """Pygame setup and the state-driven main loop."""
 
 import random
-
+import math
 import pygame
 from mazegenerator import MazeGenerator
 
@@ -37,6 +37,7 @@ class Game:
         self.current_maze: MazeGenerator
         self.config: Config
         self.pacgums: list[tuple[int, int]]
+        self.supergums: list[tuple[int, int]]
         self.pac: PacMan
         self.sprites: Sprites
         self.score: int = 0
@@ -130,6 +131,7 @@ class Game:
         x, y = self._player_spawn()
         self.pac = PacMan(x, y, lives=cfg.lives)
         self.pacgums = self.pacgum_locations(self.current_maze)
+        self.supergums = self.supergums_location(self.current_maze)
         self._reset_ghosts()
 
     def render_level(self, maze: MazeGenerator) -> None:
@@ -173,6 +175,13 @@ class Game:
                         (x + CELL_SIZE, y + CELL_SIZE),
                         WALL_THICKNESS,
                     )
+        for r, c in self.supergums:
+            cx: int = ox + c * CELL_SIZE + CELL_SIZE // 2
+            cy: int = oy + r * CELL_SIZE + CELL_SIZE // 2
+            pulse: float = (math.sin(pygame.time.get_ticks() / 250) + 1) / 2
+            pygame.draw.circle(
+                self.screen, Colors.orange, (cx, cy), round(7 + 3 * pulse)
+            )
 
         for r, c in self.pacgums:
             cx: int = ox + c * CELL_SIZE + CELL_SIZE // 2
@@ -188,6 +197,19 @@ class Game:
             if col != Direction.All
         ]
         return random.sample(eligible, min(self.config.pacgum, len(eligible)))
+
+    def supergums_location(self, maze: MazeGenerator) -> list[tuple[int, int]]:
+        """return up to 4 super gum locations, clear of pacgums and pac-man"""
+
+        eligible: list[tuple[int, int]] = [
+            (r, c)
+            for r, row in enumerate(maze.maze)
+            for c, col in enumerate(row)
+            if col != Direction.All
+            and (r, c) not in self.pacgums
+            and (r, c) != (self.pac.row, self.pac.col)
+        ]
+        return random.sample(eligible, min(4, len(eligible)))
 
     def quit(self) -> None:
         """Quit application."""
