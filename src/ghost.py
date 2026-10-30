@@ -349,6 +349,7 @@ class Ghost:
             self.state = GhostState.FRIGHTENED
             self.timer = self.FRIGHTENED_DURATION
 
+
 class Blinky(Ghost):
     """Blinky (red) ghost.
 
