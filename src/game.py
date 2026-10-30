@@ -178,9 +178,9 @@ class Game:
         for r, c in self.supergums:
             cx: int = ox + c * CELL_SIZE + CELL_SIZE // 2
             cy: int = oy + r * CELL_SIZE + CELL_SIZE // 2
-            pulse: float = (math.sin(pygame.time.get_ticks() / 250) + 1) / 2
+            pulse: float = (math.sin(pygame.time.get_ticks() / 150) + 1) / 2
             pygame.draw.circle(
-                self.screen, Colors.orange, (cx, cy), round(7 + 3 * pulse)
+                self.screen, Colors.purple, (cx, cy), round(8 + 1 * pulse)
             )
 
         for r, c in self.pacgums:
