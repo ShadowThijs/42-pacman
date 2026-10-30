@@ -275,7 +275,6 @@ class Game:
             self.level += 1
             self.new_level(self.config)
 
-
     def draw_actors(
         self,
         screen: pygame.Surface,
