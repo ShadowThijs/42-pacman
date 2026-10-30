@@ -50,6 +50,7 @@ class Game:
         self.spawn_timer: float = 0.0
         self.first_input: bool = False
         self.frightened: bool = False
+        self.fright_timer: float = 0.0
 
     def init_game(
         self,
@@ -260,6 +261,7 @@ class Game:
 
         blinky = self.ghosts[0] if self.ghosts else None
         for ghost in self.ghosts:
+            ghost.frightened = self.fright_timer > 0
             ghost.target = ghost.chase_target(self.pac, blinky)
             ghost.update(dt)
             if (
@@ -275,6 +277,14 @@ class Game:
         if not self.pacgums:
             self.level += 1
             self.new_level(self.config)
+
+    def draw(self, screen: pygame.Surface, sp: Sprites) -> None:
+        """draw the ghost"""
+        if self.frightened:
+            spr: pygame.Surface = sp.vulnerable(white=False, frame=self.frame)
+        else:
+            spr = sp.ghost(self.COLOR, self.facing, self.frame)
+        screen.blit(spr, (self.x - 16, self.y - 16))
 
     def draw_actors(
         self,
