@@ -340,6 +340,14 @@ class Ghost:
         self.state = GhostState.DEAD_PATHING
         self.target = self.spawn_pos  # set target back to their home corner
 
+    def frighten(self) -> None:
+        """triggered when pac-man eats a super gum"""
+        if self.state not in (
+            GhostState.DEAD_PATHING,
+            GhostState.DEAD_WAITING
+        ):
+            self.state = GhostState.FRIGHTENED
+            self.timer = self.FRIGHTENED_DURATION
 
 class Blinky(Ghost):
     """Blinky (red) ghost.
