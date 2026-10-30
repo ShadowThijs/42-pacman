@@ -49,6 +49,7 @@ class Game:
         self.to_spawn: list[Ghost] = []
         self.spawn_timer: float = 0.0
         self.first_input: bool = False
+        self.frightened: bool = False
 
     def init_game(
         self,
@@ -249,6 +250,12 @@ class Game:
         eaten: int = self.pac.update(
             dt, self.current_maze.maze, self.pacgums
         )
+        if (self.pac.row, self.pac.col) in self.supergums:
+            self.supergums.remove(self.pac.row, self.pac.col)
+            self.fright_timer = 8.0
+
+        self.fright_timer = max(0.0, self.fright_timer - dt)
+
         self.release_ghosts(dt)
 
         blinky = self.ghosts[0] if self.ghosts else None
