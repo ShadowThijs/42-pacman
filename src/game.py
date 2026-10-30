@@ -49,7 +49,6 @@ class Game:
         self.to_spawn: list[Ghost] = []
         self.spawn_timer: float = 0.0
         self.first_input: bool = False
-        self.frightened: bool = False
         self.fright_timer: float = 0.0
 
     def init_game(
@@ -252,16 +251,14 @@ class Game:
             dt, self.current_maze.maze, self.pacgums
         )
         if (self.pac.row, self.pac.col) in self.supergums:
-            self.supergums.remove(self.pac.row, self.pac.col)
-            self.fright_timer = 8.0
-
-        self.fright_timer = max(0.0, self.fright_timer - dt)
+            self.supergums.remove((self.pac.row, self.pac.col))
+            for ghost in self.ghosts:
+                ghost.frighten()
 
         self.release_ghosts(dt)
 
         blinky = self.ghosts[0] if self.ghosts else None
         for ghost in self.ghosts:
-            ghost.frightened = self.fright_timer > 0
             ghost.target = ghost.chase_target(self.pac, blinky)
             ghost.update(dt)
             if (
@@ -278,13 +275,6 @@ class Game:
             self.level += 1
             self.new_level(self.config)
 
-    def draw(self, screen: pygame.Surface, sp: Sprites) -> None:
-        """draw the ghost"""
-        if self.frightened:
-            spr: pygame.Surface = sp.vulnerable(white=False, frame=self.frame)
-        else:
-            spr = sp.ghost(self.COLOR, self.facing, self.frame)
-        screen.blit(spr, (self.x - 16, self.y - 16))
 
     def draw_actors(
         self,
