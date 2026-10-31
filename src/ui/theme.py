@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+
 from pygame import font
 
 import pygame as pg
@@ -64,6 +66,34 @@ class Theme:
     ) -> pg.Surface:
         """Render text with readable arcade word gaps."""
         return text_font.render(expand_spaces(text), True, color)
+
+    def render_multicolor_text(
+        self,
+        text: str,
+        text_font: font.Font,
+        colors: Sequence[tuple[int, int, int]],
+    ) -> pg.Surface:
+        """Render text with a different color for each glyph."""
+        if not colors:
+            return self.render_text(text, text_font, self.text_color)
+
+        expanded: str = expand_spaces(text)
+        widths: list[int] = [
+            text_font.size(char)[0] for char in expanded
+        ]
+        surface: pg.Surface = pg.Surface(
+            (max(1, sum(widths)), text_font.get_height()),
+            pg.SRCALPHA,
+        )
+        x: int = 0
+        for index, char in enumerate(expanded):
+            if char != " ":
+                glyph: pg.Surface = text_font.render(
+                    char, True, colors[index % len(colors)]
+                )
+                surface.blit(glyph, (x, 0))
+            x += widths[index]
+        return surface
 
     def centered_column(
         self,
@@ -175,6 +205,37 @@ class Theme:
                 text, self.title_font, shadow_color
             )
             screen.blit(shadow, rect.move(3, 3))
+        screen.blit(main, rect)
+        return rect
+
+    def draw_multicolor_title(
+        self,
+        screen: pg.Surface,
+        text: str,
+        top: int | None = None,
+        colors: Sequence[tuple[int, int, int]] = (),
+        shadow_color: tuple[int, int, int] | None = None,
+        center_x: int | None = None,
+    ) -> pg.Rect:
+        """Draw a title whose glyphs cycle through ``colors``."""
+        actual_top: int = self.title_top if top is None else top
+        actual_center: int = (
+            screen.get_width() // 2 if center_x is None else center_x
+        )
+        main: pg.Surface = self.render_multicolor_text(
+            text, self.title_font, colors
+        )
+        rect: pg.Rect = main.get_rect(
+            midtop=(actual_center, actual_top)
+        )
+        if shadow_color is not None:
+            shadow: pg.Surface = self.render_text(
+                text, self.title_font, shadow_color
+            )
+            shadow_rect: pg.Rect = shadow.get_rect(
+                midtop=(actual_center, actual_top)
+            )
+            screen.blit(shadow, shadow_rect.move(3, 3))
         screen.blit(main, rect)
         return rect
 

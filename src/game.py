@@ -6,6 +6,7 @@ import random
 import pygame
 from mazegenerator import MazeGenerator
 
+from .cheats import Cheats
 from .db import Database
 from .ghost import Ghost, GhostState, spawn_ghosts
 from .models import (
@@ -52,6 +53,7 @@ class Game:
         self.spawn_timer: float = 0.0
         self.first_input: bool = False
         self._maze_layer: pygame.Surface | None = None
+        self.cheats: Cheats = Cheats()
 
     def init_game(
         self,

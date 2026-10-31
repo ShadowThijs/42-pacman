@@ -18,12 +18,41 @@ if TYPE_CHECKING:
     from src.ui.app import App
 
 MAX_NAME_LENGTH: int = 12
-ALLOWED_NAME_CHARS: str = (
-    "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 "
-)
+ALLOWED_NAME_CHARS: str = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 "
 DEATH_FRAME_TIME: float = 0.075
 DEATH_HOLD: float = 0.45
 GHOST_COLORS: tuple[str, ...] = ("red", "pink", "cyan", "orange")
+KONAMI_CODE: tuple[int, ...] = (
+    pg.K_UP,
+    pg.K_UP,
+    pg.K_DOWN,
+    pg.K_DOWN,
+    pg.K_LEFT,
+    pg.K_RIGHT,
+    pg.K_LEFT,
+    pg.K_RIGHT,
+    pg.K_a,
+    pg.K_b,
+)
+FLICKER_DURATION: float = 0.75
+FLICKER_INTERVAL: float = 0.15
+FLICKER_TINTS: tuple[tuple[int, int, int], ...] = (
+    (80, 0, 0),
+    (0, 70, 0),
+    (0, 0, 90),
+    (80, 70, 0),
+    (70, 0, 90),
+    (0, 70, 90),
+)
+CHEAT_TITLE_COLORS: tuple[tuple[int, int, int], ...] = (
+    Colors.red,
+    Colors.orange,
+    Colors.yellow,
+    Colors.lime,
+    Colors.cyan,
+    Colors.magenta,
+    Colors.violet,
+)
 MOVE_KEYS: dict[int, int] = {
     pg.K_UP: Direction.North,
     pg.K_w: Direction.North,
@@ -39,8 +68,7 @@ MOVE_KEYS: dict[int, int] = {
 def _safe_name(name: str) -> str:
     """Return a name that the arcade font can render."""
     cleaned: str = "".join(
-        char if char in ALLOWED_NAME_CHARS else " "
-        for char in name.upper()
+        char if char in ALLOWED_NAME_CHARS else " " for char in name.upper()
     )
     cleaned = " ".join(cleaned.split())
     return cleaned[:MAX_NAME_LENGTH] or "PLAYER"
@@ -51,9 +79,7 @@ def _rank_label(index: int) -> str:
     number: int = index + 1
     suffix: str = "TH"
     if number % 100 not in (11, 12, 13):
-        suffix = {1: "ST", 2: "ND", 3: "RD"}.get(
-            number % 10, "TH"
-        )
+        suffix = {1: "ST", 2: "ND", 3: "RD"}.get(number % 10, "TH")
     return f"{number}{suffix}"
 
 
@@ -78,9 +104,7 @@ class MenuScreen(State):
         self.theme: Theme = theme
         self.title: str = title
         self.items: list[tuple[str, Callable[[], None]]] = items
-        self.footer: str = (
-            theme.select_hint if footer is None else footer
-        )
+        self.footer: str = theme.select_hint if footer is None else footer
         self.title_top: int = (
             theme.title_top if title_top is None else title_top
         )
@@ -124,9 +148,7 @@ class MenuScreen(State):
         """Move keyboard selection, wrapping around."""
         if not self.items:
             return
-        self.selected_index = (
-            self.selected_index + step
-        ) % len(self.items)
+        self.selected_index = (self.selected_index + step) % len(self.items)
         for button in self.buttons:
             button.hovered = False
 
@@ -164,6 +186,15 @@ class MenuScreen(State):
     def draw_decor(self, screen: pg.Surface) -> None:
         """Hook for menus that want a little decoration."""
 
+    def draw_title(self, screen: pg.Surface) -> None:
+        """Draw the screen title, overridable for special visuals."""
+        self.theme.draw_title(
+            screen,
+            self.title,
+            self.title_top,
+            shadow_color=Colors.red,
+        )
+
     def draw(self, screen: pg.Surface) -> None:
         """Draw the background, title, items and footer."""
         self._layout(screen.get_size())
@@ -171,12 +202,7 @@ class MenuScreen(State):
             self.theme.draw_background(screen)
         else:
             self.theme.draw_dim_overlay(screen)
-        self.theme.draw_title(
-            screen,
-            self.title,
-            self.title_top,
-            shadow_color=Colors.red,
-        )
+        self.draw_title(screen)
         self.draw_decor(screen)
         for index, button in enumerate(self.buttons):
             button.selected = index == self.selected_index
@@ -192,6 +218,8 @@ class StartMenuScreen(MenuScreen):
         """Build the attract screen."""
         self.app: App = app
         self._elapsed: float = 0.0
+        self._konami_progress: int = 0
+        self._flicker_remaining: float = 0.0
         self._high_score: int = game.best_score()
         self._pac: pg.Surface = pg.transform.smoothscale(
             game.sprites.pacman(Direction.East, 1), (48, 48)
@@ -215,9 +243,62 @@ class StartMenuScreen(MenuScreen):
             title_top=70,
         )
 
+    def handle_event(self, event: pg.event.Event) -> None:
+        """Track the Konami code, then run ordinary menu input."""
+        if event.type == pg.KEYDOWN:
+            self._advance_konami(event.key)
+        super().handle_event(event)
+
+    def _advance_konami(self, key: int) -> None:
+        """Advance the home-screen-only Konami code sequence."""
+        if key == KONAMI_CODE[self._konami_progress]:
+            self._konami_progress += 1
+        elif key == KONAMI_CODE[0]:
+            self._konami_progress = 1
+        else:
+            self._konami_progress = 0
+
+        if self._konami_progress >= len(KONAMI_CODE):
+            self._konami_progress = 0
+            self.game.cheats.activate()
+            self._flicker_remaining = FLICKER_DURATION
+
+    def draw_title(self, screen: pg.Surface) -> None:
+        """Use a rainbow logo whenever cheats are active."""
+        if not self.game.cheats.enabled:
+            super().draw_title(screen)
+            return
+        self.theme.draw_multicolor_title(
+            screen,
+            self.title,
+            self.title_top,
+            CHEAT_TITLE_COLORS,
+            shadow_color=Colors.violet,
+        )
+
     def update(self, dt: float) -> None:
         """Advance the small character bob."""
         self._elapsed += dt
+        if self._flicker_remaining > 0.0:
+            self._flicker_remaining = max(
+                0.0, self._flicker_remaining - dt
+            )
+
+    def draw(self, screen: pg.Surface) -> None:
+        """Draw the attract screen and its cheat activation flash."""
+        super().draw(screen)
+        self._draw_flicker(screen)
+
+    def _draw_flicker(self, screen: pg.Surface) -> None:
+        """Flash a colored tint over the home screen after activation."""
+        if self._flicker_remaining <= 0.0:
+            return
+        elapsed: float = FLICKER_DURATION - self._flicker_remaining
+        phase: int = int(elapsed / FLICKER_INTERVAL) % len(FLICKER_TINTS)
+        screen.fill(
+            FLICKER_TINTS[phase],
+            special_flags=pg.BLEND_RGB_ADD,
+        )
 
     def draw_decor(self, screen: pg.Surface) -> None:
         """Draw the high score line and the arcade cast."""
@@ -236,9 +317,7 @@ class StartMenuScreen(MenuScreen):
         total: int = label.get_width() + gap + score.get_width()
         x: int = center - total // 2
         y: int = 210
-        screen.blit(
-            label, (x, y - label.get_height() // 2)
-        )
+        screen.blit(label, (x, y - label.get_height() // 2))
         screen.blit(
             score,
             (
@@ -248,19 +327,22 @@ class StartMenuScreen(MenuScreen):
         )
 
         baseline: int = screen.get_height() - 150
-        pac_x: int = center - 190 + int(
-            math.sin(self._elapsed * 1.4) * 6
-        )
-        screen.blit(
-            self._pac, self._pac.get_rect(center=(pac_x, baseline))
-        )
+        pac_x: int = center - 190 + int(math.sin(self._elapsed * 1.4) * 6)
+        screen.blit(self._pac, self._pac.get_rect(center=(pac_x, baseline)))
         for index, ghost in enumerate(self._ghosts):
             ghost_x: int = center - 90 + index * 75
             ghost_y: int = baseline + int(
                 math.sin(self._elapsed * 2.0 + index * 0.6) * 5
             )
-            screen.blit(
-                ghost, ghost.get_rect(center=(ghost_x, ghost_y))
+            screen.blit(ghost, ghost.get_rect(center=(ghost_x, ghost_y)))
+        # Every State can draw cheat-only content from self.game.cheats.
+        if self.game.cheats.enabled:
+            self.theme.draw_text(
+                screen,
+                "CHEATS ACTIVE",
+                self.theme.small_font,
+                Colors.lime,
+                topleft=(20, 20),
             )
 
 
@@ -338,10 +420,7 @@ class GameScreen(State):
         if self.game.pac.direction is not None:
             return
         keys = pg.key.get_pressed()
-        if (
-            self._last_move_key is not None
-            and keys[self._last_move_key]
-        ):
+        if self._last_move_key is not None and keys[self._last_move_key]:
             self.game.queue_direction(MOVE_KEYS[self._last_move_key])
             return
         for key, direction in MOVE_KEYS.items():
@@ -389,12 +468,8 @@ class GameScreen(State):
         """Return the left, top, right and bottom of the maze."""
         left: int = OFFSET[0]
         top: int = OFFSET[1]
-        right: int = (
-            left + self.game.config.width * CELL_SIZE
-        )
-        bottom: int = (
-            top + self.game.config.height * CELL_SIZE
-        )
+        right: int = left + self.game.config.width * CELL_SIZE
+        bottom: int = top + self.game.config.height * CELL_SIZE
         return left, top, right, bottom
 
     def _draw_top_hud(self, screen: pg.Surface) -> None:
@@ -448,16 +523,51 @@ class GameScreen(State):
 
     def _draw_bottom_hud(self, screen: pg.Surface) -> None:
         """Draw remaining lives below the maze."""
-        left, _, _, bottom = self._maze_bounds()
+        left, _, right, bottom = self._maze_bounds()
+        center: int = (left + right) // 2
         y: int = bottom + 6
+        theme = self.theme
         lives: int = max(self.game.pac.lives, 0)
         for index in range(min(lives, 5)):
             screen.blit(
                 self._life_icon,
-                self._life_icon.get_rect(
-                    topleft=(left + index * 26, y)
-                ),
+                self._life_icon.get_rect(topleft=(left + index * 26, y)),
             )
+        theme.draw_text(
+            screen,
+            "1 Invincible",
+            theme.small_font,
+            theme.accent,
+            midbottom=(center - 210, y + 19),
+        )
+        theme.draw_text(
+            screen,
+            "2 Speedhack",
+            theme.small_font,
+            theme.accent,
+            midbottom=(center - 90, y + 19),
+        )
+        theme.draw_text(
+            screen,
+            "3 Add live",
+            theme.small_font,
+            theme.accent,
+            midbottom=(center + 20, y + 19),
+        )
+        theme.draw_text(
+            screen,
+            "4 Skip level",
+            theme.small_font,
+            theme.accent,
+            midbottom=(center + 135, y + 19),
+        )
+        theme.draw_text(
+            screen,
+            "5 Ghost freeze",
+            theme.small_font,
+            theme.accent,
+            midbottom=(center + 265, y + 19),
+        )
 
     def draw(self, screen: pg.Surface) -> None:
         """Draw the maze, actors and the two arcade HUD rows."""
@@ -468,12 +578,9 @@ class GameScreen(State):
         self._draw_bottom_hud(screen)
         if (
             self._frame_without_pacman is None
-            or self._frame_without_pacman.get_size()
-            != screen.get_size()
+            or self._frame_without_pacman.get_size() != screen.get_size()
         ):
-            self._frame_without_pacman = pg.Surface(
-                screen.get_size()
-            )
+            self._frame_without_pacman = pg.Surface(screen.get_size())
         self._frame_without_pacman.blit(screen, (0, 0))
         self.game.pac.draw(screen, self.game.sprites)
         if not self.game.first_input:
@@ -495,7 +602,7 @@ class DyingState(State):
 
     fills_background = False
 
-    def __init__(  # noqa: PLR0913
+    def __init__(
         self,
         game: Game,
         theme: Theme,
@@ -515,8 +622,7 @@ class DyingState(State):
         self.elapsed: float = 0.0
         self._done: bool = False
         self._frames: list[pg.Surface] = [
-            game.sprites.death(frame)
-            for frame in range(10)
+            game.sprites.death(frame) for frame in range(10)
         ]
         self._duration: float = 10 * DEATH_FRAME_TIME + DEATH_HOLD
 
@@ -544,9 +650,7 @@ class DyingState(State):
             screen.blit(self.background, (0, 0))
         else:
             screen.blit(
-                pg.transform.smoothscale(
-                    self.background, screen.get_size()
-                ),
+                pg.transform.smoothscale(self.background, screen.get_size()),
                 (0, 0),
             )
         frame: int = min(
@@ -560,7 +664,7 @@ class DyingState(State):
 class NameEntryScreen(State):
     """Arcade high-score name entry after game over."""
 
-    def __init__(  # noqa: PLR0913
+    def __init__(
         self,
         game: Game,
         theme: Theme,
@@ -615,9 +719,7 @@ class NameEntryScreen(State):
 
     def _move(self, step: int) -> None:
         """Move the action selection, wrapping around."""
-        self.selected_index = (
-            self.selected_index + step
-        ) % len(self.buttons)
+        self.selected_index = (self.selected_index + step) % len(self.buttons)
         for button in self.buttons:
             button.hovered = False
 
@@ -702,9 +804,7 @@ class NameEntryScreen(State):
         )
         cursor_width: int = 18
         gap: int = 6 if self.name else 0
-        total: int = (
-            text_surface.get_width() + gap + cursor_width
-        )
+        total: int = text_surface.get_width() + gap + cursor_width
         start_x: int = center - total // 2
         screen.blit(text_surface, (start_x, input_y))
         cursor_x: int = start_x + text_surface.get_width() + gap
@@ -719,9 +819,7 @@ class NameEntryScreen(State):
                     self.theme.input_font.get_height() - 6,
                 ),
             )
-        line_y: int = (
-            input_y + self.theme.input_font.get_height() + 8
-        )
+        line_y: int = input_y + self.theme.input_font.get_height() + 8
         pg.draw.line(
             screen,
             Colors.blue,
@@ -732,9 +830,7 @@ class NameEntryScreen(State):
         for index, button in enumerate(self.buttons):
             button.selected = index == self.selected_index
             button.draw(screen)
-        self.theme.draw_footer(
-            screen, "ENTER CONFIRM  ESC SKIP"
-        )
+        self.theme.draw_footer(screen, "ENTER CONFIRM  ESC SKIP")
 
 
 class LeaderboardScreen(State):
@@ -795,9 +891,7 @@ class LeaderboardScreen(State):
 
     def _move(self, step: int) -> None:
         """Change the selected action, wrapping around."""
-        self.selected_index = (
-            self.selected_index + step
-        ) % len(self.buttons)
+        self.selected_index = (self.selected_index + step) % len(self.buttons)
         for button in self.buttons:
             button.hovered = False
 
@@ -907,9 +1001,7 @@ class LeaderboardScreen(State):
                 row_y += 34
                 continue
             name, score = self.entries[index]
-            highlighted: bool = (
-                (name, score) == self.highlight
-            )
+            highlighted: bool = (name, score) == self.highlight
             color: tuple[int, int, int] = (
                 Colors.yellow if highlighted else Colors.white
             )
@@ -967,6 +1059,4 @@ class LeaderboardScreen(State):
         for index, button in enumerate(self.buttons):
             button.selected = index == self.selected_index
             button.draw(screen)
-        self.theme.draw_footer(
-            screen, "ARROWS SELECT  ESC MAIN MENU"
-        )
+        self.theme.draw_footer(screen, "ARROWS SELECT  ESC MAIN MENU")
