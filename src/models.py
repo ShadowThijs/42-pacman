@@ -11,6 +11,7 @@ from typing import Any, ClassVar
 CELL_SIZE: int = 36
 WALL_THICKNESS: int = 2
 OFFSET: tuple[int, int] = (50, 50)
+ANIMATION_FRAME_TIME: float = 0.2
 
 
 def clean_json(text: str) -> str:
@@ -74,9 +75,18 @@ class Config:
                 f"Config file not found: {cfg_json}, using defaults"
             )
         else:
-            with open(cfg_json) as f:
-                data = json.loads(clean_json(f.read()))
-            loaded = True
+            try:
+                with open(cfg_json) as f:
+                    parsed = json.loads(clean_json(f.read()))
+                if not isinstance(parsed, dict):
+                    raise ValueError("config root must be a JSON object")
+                data = parsed
+                loaded = True
+            except (OSError, ValueError) as exc:
+                print(
+                    f"Could not read config {cfg_json}: {exc}; "
+                    "using defaults"
+                )
 
         for key, default in self.DEFAULTS.items():
             value = data.get(key, default)
@@ -125,6 +135,42 @@ class Direction:
     South: int = 0x4
     West: int = 0x8
     All: int = 0xF
+
+
+# (column, row) deltas for each direction bit.
+VECTORS: dict[int, tuple[int, int]] = {
+    Direction.North: (0, -1),
+    Direction.South: (0, 1),
+    Direction.East: (1, 0),
+    Direction.West: (-1, 0),
+}
+
+REVERSE: dict[int, int] = {
+    Direction.North: Direction.South,
+    Direction.South: Direction.North,
+    Direction.East: Direction.West,
+    Direction.West: Direction.East,
+}
+
+# Classic Pac-Man tie-break order when several routes are equally short.
+DIRECTION_ORDER: tuple[int, ...] = (
+    Direction.North,
+    Direction.West,
+    Direction.South,
+    Direction.East,
+)
+
+
+def can_move(
+    maze: list[list[int]],
+    row: int,
+    col: int,
+    direction: int,
+) -> bool:
+    """Return whether (row, col) has no wall on ``direction``'s side."""
+    if not (0 <= row < len(maze) and 0 <= col < len(maze[0])):
+        return False
+    return (maze[row][col] & direction) == 0
 
 
 @dataclass(frozen=True)

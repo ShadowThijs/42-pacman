@@ -53,7 +53,7 @@ class Database:
 
     def add_leaderboard_entry(self, name: str, score: int) -> None:
         """Add a leaderboard entry to database."""
-        if not hasattr(self, "cursor") and not hasattr(self, "conn"):
+        if not hasattr(self, "cursor"):
             return
         try:
             self.cursor.execute(

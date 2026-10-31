@@ -24,6 +24,16 @@ ALLOWED_NAME_CHARS: str = (
 DEATH_FRAME_TIME: float = 0.075
 DEATH_HOLD: float = 0.45
 GHOST_COLORS: tuple[str, ...] = ("red", "pink", "cyan", "orange")
+MOVE_KEYS: dict[int, int] = {
+    pg.K_UP: Direction.North,
+    pg.K_w: Direction.North,
+    pg.K_DOWN: Direction.South,
+    pg.K_s: Direction.South,
+    pg.K_LEFT: Direction.West,
+    pg.K_a: Direction.West,
+    pg.K_RIGHT: Direction.East,
+    pg.K_d: Direction.East,
+}
 
 
 def _safe_name(name: str) -> str:
@@ -300,26 +310,45 @@ class GameScreen(State):
             game.sprites.pacman(Direction.East, 1), (20, 20)
         )
         self._frame_without_pacman: pg.Surface | None = None
+        self._last_move_key: int | None = None
 
     def handle_event(self, event: pg.event.Event) -> None:
         """Translate input into movement, pause, or quit."""
         if event.type != pg.KEYDOWN:
             return
         key: int = event.key
-        if key in (pg.K_UP, pg.K_w):
-            self.game.queue_direction(Direction.North)
-        elif key in (pg.K_DOWN, pg.K_s):
-            self.game.queue_direction(Direction.South)
-        elif key in (pg.K_LEFT, pg.K_a):
-            self.game.queue_direction(Direction.West)
-        elif key in (pg.K_RIGHT, pg.K_d):
-            self.game.queue_direction(Direction.East)
+        direction: int | None = MOVE_KEYS.get(key)
+        if direction is not None:
+            self._last_move_key = key
+            self.game.queue_direction(direction)
         elif key in (pg.K_p, pg.K_ESCAPE):
             self.game.states.push(
                 PauseMenuScreen(self.game, self.theme, self.app)
             )
         elif key == pg.K_q:
             self.app.quit()
+
+    def _poll_held_direction(self) -> None:
+        """Keep a held key moving Pac-Man after a stop or a respawn.
+
+        ``KEYDOWN`` alone is not enough: holding a direction against a
+        wall, through a death animation, or across a menu produces no
+        new event when play resumes. Polling the key state fixes that.
+        """
+        if self.game.pac.direction is not None:
+            return
+        keys = pg.key.get_pressed()
+        if (
+            self._last_move_key is not None
+            and keys[self._last_move_key]
+        ):
+            self.game.queue_direction(MOVE_KEYS[self._last_move_key])
+            return
+        for key, direction in MOVE_KEYS.items():
+            if keys[key]:
+                self._last_move_key = key
+                self.game.queue_direction(direction)
+                return
 
     def _start_death(self, position: tuple[float, float]) -> None:
         """Freeze the last frame and play the death animation."""
@@ -347,6 +376,7 @@ class GameScreen(State):
 
     def update(self, dt: float) -> None:
         """Advance gameplay and react to a death."""
+        self._poll_held_direction()
         lives_before: int = self.game.pac.lives
         pac_x: float = self.game.pac.x
         pac_y: float = self.game.pac.y
@@ -433,7 +463,7 @@ class GameScreen(State):
         """Draw the maze, actors and the two arcade HUD rows."""
         screen.fill(Colors.black)
         self._draw_top_hud(screen)
-        self.game.render_level(self.game.current_maze)
+        self.game.render_level()
         self.game.draw_actors(screen, include_pacman=False)
         self._draw_bottom_hud(screen)
         if (

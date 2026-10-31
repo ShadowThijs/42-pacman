@@ -2,57 +2,58 @@
 
 from __future__ import annotations
 
-import random
 from collections import deque
 from enum import Enum, auto
+from typing import ClassVar
 
 import pygame
 from mazegenerator import MazeGenerator
 
 from src.player import PacMan
 
-from .models import CELL_SIZE, OFFSET, Config, Direction, Position
+from .models import (
+    ANIMATION_FRAME_TIME,
+    CELL_SIZE,
+    DIRECTION_ORDER,
+    OFFSET,
+    REVERSE,
+    VECTORS,
+    Config,
+    Direction,
+    Position,
+    can_move,
+)
 from .sprites import Sprites
 
-VECTORS: dict[int, tuple[int, int]] = {
-    Direction.North: (0, -1),
-    Direction.South: (0, 1),
-    Direction.East: (1, 0),
-    Direction.West: (-1, 0),
-}
-
-REVERSE: dict[int, int] = {
-    Direction.North: Direction.South,
-    Direction.South: Direction.North,
-    Direction.East: Direction.West,
-    Direction.West: Direction.East,
-}
-
-SWITCH_DT: float = 0.2
 # Seconds between each ghost's release after Pac-Man's first input.
 GHOST_RELEASE_INTERVAL: float = 2.0
 
 
 class GhostState(Enum):
     """Ghost states."""
+
     CHASE = auto()  # normal behaviour, hunting pac-man
     SCATTER = auto()  # normal behaviour, going to their corner
     FRIGHTENED = auto()  # blue and edible (super gum)
     DEAD_PATHING = auto()  # floating eyes returning to spawn
-    DEAD_WAITING = auto()  # reached corner, waiting for 5 sec to respawn
+    DEAD_WAITING = auto()  # reached corner, waiting to respawn
 
 
 class Ghost:
     """Base ghost: shared movement, pathfinding and drawing.
 
-    Subclasses only need to set COLOR and override ``_spawn_tile()``
-    to choose their start position. The tile they hunt is set per
-    frame through the ``target`` attribute.
+    Subclasses set ``COLOR``, their ``CORNER`` and ``chase_target``.
+    Ghosts never reverse direction at a junction unless the maze leaves
+    them no other choice, which keeps their movement smooth.
     """
 
     COLOR: str = "red"
-    RESPAWN_DELAY: float = 5.0  # for 5-10s before respawining
-    FRIGHTENED_DURATION: float = 7.0  # how long the ghosts stay blue
+    # (top, left) corner this ghost owns. It is both its spawn tile and
+    # the tile it retreats to while frightened or dead.
+    CORNER: ClassVar[tuple[bool, bool]] = (True, True)
+    RESPAWN_DELAY: float = 5.0
+    FRIGHTENED_DURATION: float = 7.0
+    FLASH_TIME: float = 2.0
 
     def __init__(
         self,
@@ -68,30 +69,32 @@ class Ghost:
         # seconds after Pac-Man's first input before this ghost appears
         self.release_delay: float = 0.0
 
-        # start by going to corners
-        self.state: GhostState = GhostState.SCATTER
+        self.scatter_corner: Position = self._corner(*self.CORNER)
+        self.spawn_pos: Position = (
+            self.scatter_corner if spawn is None else spawn
+        )
+
+        # Ghosts hunt as soon as they are released; SCATTER is available
+        # for a retreat phase and uses the same corner as spawn.
+        self.state: GhostState = GhostState.CHASE
         self.timer: float = 0.0
 
-        # save the spawn position so we can return when we're dead
-        self.spawn_pos: Position = (
-            spawn if spawn is not None else self._spawn_tile()
-        )
         self.row: int = self.spawn_pos.row
         self.col: int = self.spawn_pos.col
 
         self.progress: float = 0.0
         self.direction: int | None = None
+        self.reverse_allowed: bool = False
         self.facing: int = Direction.East
         self.frame: int = 1
         self.anim_t: float = 0.0
         self.anim_frame: int = 0
 
-        # target start as the spawn position
         self.target: Position = self.spawn_pos
 
     def reset_to_spawn(self) -> None:
         """Resets ghosts to spawn after pacman dies."""
-        self.state = GhostState.SCATTER
+        self.state = GhostState.CHASE
         self.timer = 0.0
 
         self.row = self.spawn_pos.row
@@ -100,11 +103,8 @@ class Ghost:
 
         self.progress = 0.0
         self.direction = None
+        self.reverse_allowed = False
         self.facing = Direction.East
-
-    def _spawn_tile(self) -> Position:
-        """Start tile of this ghost type; default is the top-left corner."""
-        return self._corner(top=True, left=True)
 
     def _corner(self, top: bool, left: bool) -> Position:
         """Corner tile of the maze grid: (top|bottom, left|right)."""
@@ -114,34 +114,30 @@ class Ghost:
         col: int = 0 if left else width - 1
         return Position(row, col)
 
-    def update(self, dt: float) -> None:
-        """Advance the ghost one frame toward its target."""
-        # deacrease timer if active, and revert state when time is up
-        if self.timer > 0:
-            self.timer -= dt
-            if self.timer <= 0:
-                self.timer = 0.0
-                if (
-                    self.state in (
-                        GhostState.FRIGHTENED,
-                        GhostState.DEAD_WAITING
-                    )
-                ):
-                    self.state = GhostState.CHASE
+    def update(
+        self,
+        dt: float,
+        pac: PacMan,
+        blinky: Ghost | None,
+    ) -> None:
+        """Advance the ghost one frame toward its current target."""
+        self._tick_timer(dt)
 
         if self.state == GhostState.DEAD_WAITING:
             return
 
         if self.progress == 0.0:
-            self._decide()
+            if self._reached_spawn():
+                return
+            self._decide(pac, blinky)
 
         if self.direction is None:
             return
 
-        # use current_speed instead of based on state (slower for frightened)
+        # Frightened ghosts are slower, floating eyes are much faster.
         current_speed: float = float(self.base_speed)
         if self.state == GhostState.FRIGHTENED:
-            current_speed *= 0.6  # 40% slower when edible
+            current_speed *= 0.6
         elif self.state == GhostState.DEAD_PATHING:
             current_speed *= 2.0
 
@@ -153,101 +149,155 @@ class Ghost:
             self.col += dx
             self.row += dy
 
-            if (
-                (self.state == GhostState.DEAD_PATHING)
-                and (self.row == self.spawn_pos.row)
-                and (self.col == self.spawn_pos.col)
-            ):
-                self.state = GhostState.DEAD_WAITING
-                # wait 5 seconds before reviving
-                self.timer = self.RESPAWN_DELAY
+            if self._reached_spawn():
                 self.progress = 0.0
                 return
 
-            self._decide()
+            self._decide(pac, blinky)
             if self.direction is None:
                 self.progress = 0.0
                 return
 
         self.anim_t += dt
-        if self.anim_t >= SWITCH_DT:
+        if self.anim_t >= ANIMATION_FRAME_TIME:
             self.anim_t = 0.0
             self.anim_frame = 1 - self.anim_frame
         self.frame = self.anim_frame + 1
 
-    def _decide(self) -> None:
-        """Pick the direction on the shortest path to the target."""
-        nxt: int | None = None
+    def _tick_timer(self, dt: float) -> None:
+        """Advance the state timer and resume normal behaviour when done."""
+        if self.timer <= 0.0:
+            return
+        self.timer = max(0.0, self.timer - dt)
+        if self.timer > 0.0:
+            return
+        if self.state in (
+            GhostState.FRIGHTENED,
+            GhostState.DEAD_WAITING,
+        ):
+            self.state = GhostState.CHASE
+            self.reverse_allowed = False
 
-        if self.state == GhostState.FRIGHTENED:
-            nxt = self._random_direction()
+    def _reached_spawn(self) -> bool:
+        """Finish a dead ghost's trip once its eyes reach the spawn tile."""
+        if self.state != GhostState.DEAD_PATHING:
+            return False
+        if (self.row, self.col) != (
+            self.spawn_pos.row,
+            self.spawn_pos.col,
+        ):
+            return False
+        self.state = GhostState.DEAD_WAITING
+        self.timer = self.RESPAWN_DELAY
+        return True
+
+    def _decide(self, pac: PacMan, blinky: Ghost | None) -> None:
+        """Pick the next direction, preferring the shortest forward route."""
+        self.target = self.target_tile(pac, blinky)
+        options: list[int] = self._open_directions()
+        if not options:
+            self.direction = None
+            return
+
+        back: int | None = (
+            None if self.direction is None else REVERSE[self.direction]
+        )
+        at_target: bool = (self.row, self.col) == (
+            self.target.row,
+            self.target.col,
+        )
+        if at_target and self.state in (
+            GhostState.FRIGHTENED,
+            GhostState.SCATTER,
+        ):
+            # Once home, leave again instead of jittering in place.
+            self.reverse_allowed = False
+
+        # While chasing, avoid blind U-turns so the ghost keeps momentum.
+        # A retreat target may be behind the ghost, so allow one U-turn
+        # right after the target changes, then patrol smoothly.
+        if self.reverse_allowed and not at_target:
+            choices: list[int] = list(options)
+        else:
+            choices = [
+                direction for direction in options if direction != back
+            ]
+        if not choices:
+            choices = options
+
+        if len(choices) == 1:
+            nxt: int | None = choices[0]
         else:
             nxt = self._shortest_direction(
-                self.maze.maze, Position(self.row, self.col), self.target
+                self.maze.maze,
+                self.row,
+                self.col,
+                self.target,
+                choices,
             )
-
             if nxt is None:
-                nxt = self._nearest_direction()
+                nxt = self._nearest_direction(choices)
+
         if nxt is not None:
+            if nxt == back:
+                self.reverse_allowed = False
             self.direction = nxt
             self.facing = nxt
-        if self.direction is not None and not self._open(
-            self.maze.maze, self.row, self.col, self.direction
-        ):
-            self.direction = None
 
-    def _nearest_direction(self) -> int | None:
+    def _open_directions(self) -> list[int]:
+        """Return every direction this ghost may take from its tile."""
+        return [
+            direction
+            for direction in DIRECTION_ORDER
+            if can_move(self.maze.maze, self.row, self.col, direction)
+        ]
+
+    def _nearest_direction(self, choices: list[int]) -> int | None:
         """Fallback when the target is unreachable: head toward it.
 
-        No U-turns at intersections, but they are allowed in dead ends.
+        ``choices`` is already ordered by the classic tie-break, so the
+        first direction wins whenever two options are equally close.
         """
-        forbidden: int | None = (
-            REVERSE[self.direction] if self.direction is not None else None
-        )
-        best: int | None = None
+        if not choices:
+            return None
+        best: int = choices[0]
         best_dist: float = float("inf")
-        for direction, (dx, dy) in VECTORS.items():
-            if direction == forbidden:
-                continue
-            if not self._open(self.maze.maze, self.row, self.col, direction):
-                continue
-            nr, nc = self.row + dy, self.col + dx
+        for direction in choices:
+            dx, dy = VECTORS[direction]
+            nr = self.row + dy
+            nc = self.col + dx
             dist: float = (nr - self.target.row) ** 2 + (
                 nc - self.target.col
             ) ** 2
             if dist < best_dist:
                 best_dist = dist
                 best = direction
-        if (
-            best is None
-            and forbidden is not None
-            and self._open(self.maze.maze, self.row, self.col, forbidden)
-        ):
-            return forbidden
         return best
 
-    def _random_direction(self) -> int | None:
-        """Used in frightened state to wander randomly at intersections."""
-        forbidden: int | None = (
-            REVERSE[self.direction] if self.direction is not None else None
+    def target_tile(
+        self,
+        pac: PacMan,
+        blinky: Ghost | None,
+    ) -> Position:
+        """Return the tile this ghost wants to reach right now.
+
+        Frightened ghosts and returning eyes retreat to the ghost's own
+        corner instead of chasing Pac-Man.
+        """
+        if self.state == GhostState.DEAD_PATHING:
+            return self.spawn_pos
+        if self.state in (GhostState.FRIGHTENED, GhostState.SCATTER):
+            return self.scatter_corner
+        return self.chase_target(pac, blinky)
+
+    def _clamp(self, row: int, col: int) -> Position:
+        """Clamp a target to a valid maze tile."""
+        height: int = len(self.maze.maze)
+        width: int = len(self.maze.maze[0])
+        return Position(
+            max(0, min(row, height - 1)),
+            max(0, min(col, width - 1)),
         )
-        possible_moves: list[int] = []
-
-        for direction in VECTORS:
-            if direction == forbidden:
-                continue
-            if self._open(self.maze.maze, self.row, self.col, direction):
-                possible_moves.append(direction)
-
-        if (
-            not possible_moves
-            and forbidden is not None
-            and self._open(self.maze.maze, self.row, self.col, forbidden)
-        ):
-            return forbidden
-        elif possible_moves:
-            return random.choice(possible_moves)
-        return None
 
     def draw(self, screen: pygame.Surface, sp: Sprites) -> None:
         """Draw the ghost."""
@@ -255,20 +305,18 @@ class Ghost:
             return
 
         spr: pygame.Surface
-
-        timer: float = 2.0
         if self.state == GhostState.FRIGHTENED:
             is_flashing: bool = (
-                self.timer < timer and int(self.timer * 4) % 2 == 0
+                self.timer < self.FLASH_TIME
+                and int(self.timer * 4) % 2 == 0
             )
             spr = sp.vulnerable(white=is_flashing, frame=self.frame)
-
         elif self.state == GhostState.DEAD_PATHING:
             spr = sp.eyes(self.facing)
-
         else:
             spr = sp.ghost(self.COLOR, self.facing, self.frame)
-        screen.blit(spr, (self.x - 16, self.y - 16))
+
+        screen.blit(spr, spr.get_rect(center=(round(self.x), round(self.y))))
 
     @property
     def x(self) -> float:
@@ -289,133 +337,131 @@ class Ghost:
         return base + VECTORS[self.direction][1] * CELL_SIZE * self.progress
 
     @staticmethod
-    def _open(
-        maze: list[list[int]], row: int, col: int, direction: int
-    ) -> bool:
-        """No wall on `direction`'s side of cell (row, col)."""
-        return maze[row][col] & direction == 0
-
-    @staticmethod
     def _shortest_direction(
         maze: list[list[int]],
-        start: Position,
+        start_row: int,
+        start_col: int,
         target: Position,
+        choices: list[int],
     ) -> int | None:
-        """BFS from `start` to `target`; return the first step direction."""
-        if start == target:
+        """BFS from (start_row, start_col) toward ``target``.
+
+        Only ``choices`` may be used for the first step, which is how the
+        ghost avoids blind U-turns while still taking the shortest route.
+        Returns the first direction of that route, or ``None`` if no route
+        exists.
+        """
+        if not choices or (start_row, start_col) == (
+            target.row,
+            target.col,
+        ):
             return None
-        visited: dict[Position, tuple[Position, int]] = {start: (start, 0)}
-        queue: deque[Position] = deque([start])
+
+        height: int = len(maze)
+        width: int = len(maze[0])
+        seen: list[list[bool]] = [
+            [False] * width for _ in range(height)
+        ]
+        seen[start_row][start_col] = True
+
+        queue: deque[tuple[int, int, int]] = deque()
+        for direction in choices:
+            dx, dy = VECTORS[direction]
+            nr, nc = start_row + dy, start_col + dx
+            if not (0 <= nr < height and 0 <= nc < width):
+                continue
+            if (nr, nc) == (target.row, target.col):
+                return direction
+            seen[nr][nc] = True
+            queue.append((nr, nc, direction))
+
         while queue:
-            pos = queue.popleft()
-            for direction, (dx, dy) in VECTORS.items():
-                if maze[pos.row][pos.col] & direction:
+            row, col, first = queue.popleft()
+            for direction in DIRECTION_ORDER:
+                if not can_move(maze, row, col, direction):
                     continue
-                nxt = Position(pos.row + dy, pos.col + dx)
-                if not (
-                    0 <= nxt.row < len(maze) and 0 <= nxt.col < len(maze[0])
-                ):
+                dx, dy = VECTORS[direction]
+                nr, nc = row + dy, col + dx
+                if not (0 <= nr < height and 0 <= nc < width):
                     continue
-                if nxt in visited:
+                if seen[nr][nc]:
                     continue
-                visited[nxt] = (pos, direction)
-                if nxt == target:
-                    cur = nxt
-                    while visited[cur][0] != start:
-                        cur = visited[cur][0]
-                    return visited[cur][1]
-                queue.append(nxt)
+                if (nr, nc) == (target.row, target.col):
+                    return first
+                seen[nr][nc] = True
+                queue.append((nr, nc, first))
         return None
 
     def chase_target(
         self,
         pac: PacMan,
-        blinky: Ghost | None
+        blinky: Ghost | None,
     ) -> Position:
-        """Target Pacman."""
+        """Target Pac-Man directly."""
         return Position(pac.row, pac.col)
 
     def die(self) -> None:
-        """Trigegered when pac-man eats this ghost."""
+        """Triggered when pac-man eats this ghost."""
         self.state = GhostState.DEAD_PATHING
-        self.target = self.spawn_pos  # set target back to their home corner
+        self.target = self.spawn_pos
+        self.reverse_allowed = True
 
     def frighten(self) -> None:
-        """triggered when pac-man eats a super gum"""
+        """Triggered when pac-man eats a super gum."""
         if self.state not in (
             GhostState.DEAD_PATHING,
-            GhostState.DEAD_WAITING
+            GhostState.DEAD_WAITING,
         ):
             self.state = GhostState.FRIGHTENED
             self.timer = self.FRIGHTENED_DURATION
+            self.reverse_allowed = True
 
 
 class Blinky(Ghost):
     """Blinky (red) ghost.
 
-    Follows Pac-Man directly (shortest path)
-    Goes to the upper-right corner in Scatter mode
+    Follows Pac-Man directly (shortest path).
+    Goes to the upper-right corner in Scatter mode.
     """
 
-    COLOR: str = "red"
-
-    def _spawn_tile(self) -> Position:
-        return self._corner(top=True, left=False)
-
-    def chase_target(
-        self,
-        pac: PacMan,
-        blinky: Ghost | None = None
-    ) -> Position:
-        """Target Pacman directly."""
-        return Position(pac.row, pac.col)
+    COLOR = "red"
+    CORNER: ClassVar[tuple[bool, bool]] = (True, False)
 
 
 class Pinky(Ghost):
     """Pinky (pink) ghost.
 
-    Target spot 2 cells in front of Pac-Man
-        * Will target 2 to the left when Pac-Man faces up
-    Goes to upper-left corner in Scatter mode
+    Target spot 2 cells in front of Pac-Man.
+        * Will target 2 up and 1 left when Pac-Man faces up.
+    Goes to the upper-left corner in Scatter mode.
     """
 
-    COLOR: str = "pink"
-
-    def _spawn_tile(self) -> Position:
-        return self._corner(top=True, left=True)
+    COLOR = "pink"
+    CORNER: ClassVar[tuple[bool, bool]] = (True, True)
 
     def chase_target(
         self, pac: PacMan, blinky: Ghost | None = None
     ) -> Position:
-        """Chase target: 2 tiles ahead of the pac-man."""
+        """Chase target: 2 tiles ahead of Pac-Man."""
         dx, dy = VECTORS[pac.facing]
         if pac.facing == Direction.North:
             dx -= 1
-        row = pac.row + 2 * dy
-        col = pac.col + 2 * dx
-
-        row = max(0, min(row, len(self.maze.maze) - 1))
-        col = max(0, min(col, len(self.maze.maze[0]) - 1))
-
-        return Position(row, col)
+        return self._clamp(pac.row + 2 * dy, pac.col + 2 * dx)
 
 
 class Inky(Ghost):
     """Inky (cyan) ghost.
 
-    Target is relative to both Blinky and Pac-Man,
-        where the distance Blinky is from Pinky's target
-        is doubled to get Inky's target
-    Goes to the lower-right corner in Scatter mode
+    Target is relative to both Blinky and Pac-Man: the vector from
+    Blinky to Pinky's target is doubled.
+    Goes to the lower-right corner in Scatter mode.
     """
 
-    COLOR: str = "cyan"
-
-    def _spawn_tile(self) -> Position:
-        return self._corner(top=False, left=False)
+    COLOR = "cyan"
+    CORNER: ClassVar[tuple[bool, bool]] = (False, False)
 
     def chase_target(self, pac: PacMan, blinky: Ghost | None) -> Position:
-        """Chase pacman based on Blink & Inky."""
+        """Chase Pac-Man based on Blinky and Inky."""
         if blinky is None:
             return Position(0, 0)
         dx, dy = VECTORS[pac.facing]
@@ -424,37 +470,33 @@ class Inky(Ghost):
 
         pivot_row = pac.row + 2 * dy
         pivot_col = pac.col + 2 * dx
-
-        row = 2 * pivot_row - blinky.row
-        col = 2 * pivot_col - blinky.col
-
-        row = max(0, min(row, len(self.maze.maze) - 1))
-        col = max(0, min(col, len(self.maze.maze[0]) - 1))
-
-        return Position(row, col)
+        return self._clamp(
+            2 * pivot_row - blinky.row,
+            2 * pivot_col - blinky.col,
+        )
 
 
 class Clyde(Ghost):
     """Clyde (orange) ghost.
 
-    Target is Pac-Man directly, but tries to target,
-        Scatter corner when within 8 cell radius of Pac-Man
-    Goes to lower-left in Scatter mode
+    Targets Pac-Man directly, but retreats to his corner when he gets
+    too close (within eight tiles), then comes back for another try.
+    Goes to the lower-left corner in Scatter mode.
     """
 
-    COLOR: str = "orange"
-
-    def _spawn_tile(self) -> Position:
-        return self._corner(top=False, left=True)
+    COLOR = "orange"
+    CORNER: ClassVar[tuple[bool, bool]] = (False, True)
+    SHY_RADIUS: ClassVar[int] = 8
 
     def chase_target(
         self, pac: PacMan, blinky: Ghost | None = None
     ) -> Position:
-        """Chase pacman but shy."""
-        dist_sq = (self.row - pac.row) ** 2 + (self.col - pac.col) ** 2
-
-        if dist_sq < 3**2:
-            return self._spawn_tile()
+        """Chase Pac-Man but retreat when he is close."""
+        dist_sq: int = (self.row - pac.row) ** 2 + (
+            self.col - pac.col
+        ) ** 2
+        if dist_sq < self.SHY_RADIUS**2:
+            return self.scatter_corner
         return Position(pac.row, pac.col)
 
 
