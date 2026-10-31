@@ -4,20 +4,14 @@ from __future__ import annotations
 
 
 class Cheats:
-    """Cheat flags for one program session.
-
-    The object lives on ``Game`` for the whole run. Starting a new game
-    or a new level does not reset it, and ``enabled`` is read-only: once
-    activated, cheats stay on until the process exits.
-
-    Add future cheat flags here as attributes in ``__init__``, for
-    example ``self.invincible = False``, and set them when the
-    corresponding cheat is enabled.
-    """
+    """Cheat flags for one program session."""
 
     def __init__(self) -> None:
         """Start a session with every cheat disabled."""
         self._enabled: bool = False
+        self._invincible: bool = False
+        self._speedhack: bool = False
+        self._ghostfreeze: bool = False
 
     @property
     def enabled(self) -> bool:
@@ -29,3 +23,21 @@ class Cheats:
         newly_activated = not self._enabled
         self._enabled = True
         return newly_activated
+
+    def invicible(self, change: bool | None = None) -> bool:
+        """Change or retrieve cheat."""
+        if change not in (None, self._invincible):
+            self._invincible = change
+        return self._invincible
+
+    def speedhack(self, change: bool | None = None) -> bool:
+        """Change or retrieve cheat."""
+        if change not in (None, self._speedhack):
+            self._speedhack = change
+        return self._speedhack
+
+    def ghostfreeze(self, change: bool | None = None) -> bool:
+        """Change or retrieve cheat."""
+        if change not in (None, self._ghostfreeze):
+            self._ghostfreeze = change
+        return self._ghostfreeze

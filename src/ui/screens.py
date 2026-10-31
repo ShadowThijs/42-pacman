@@ -8,6 +8,8 @@ from typing import TYPE_CHECKING
 
 import pygame as pg
 
+from src import Cheats
+from src.ghost import GhostState
 from src.models import CELL_SIZE, OFFSET, Colors, Direction
 from src.state import State
 from src.ui.components import Button
@@ -280,9 +282,7 @@ class StartMenuScreen(MenuScreen):
         """Advance the small character bob."""
         self._elapsed += dt
         if self._flicker_remaining > 0.0:
-            self._flicker_remaining = max(
-                0.0, self._flicker_remaining - dt
-            )
+            self._flicker_remaining = max(0.0, self._flicker_remaining - dt)
 
     def draw(self, screen: pg.Surface) -> None:
         """Draw the attract screen and its cheat activation flash."""
@@ -400,6 +400,7 @@ class GameScreen(State):
             return
         key: int = event.key
         direction: int | None = MOVE_KEYS.get(key)
+        cheat: Cheats = self.game.cheats
         if direction is not None:
             self._last_move_key = key
             self.game.queue_direction(direction)
@@ -409,6 +410,28 @@ class GameScreen(State):
             )
         elif key == pg.K_q:
             self.app.quit()
+        elif key == pg.K_1:
+            cheat.invicible(not cheat.invicible())
+        elif key == pg.K_2:
+            cheat.speedhack(not cheat.speedhack())
+        elif key == pg.K_3:
+            if cheat.ghostfreeze():
+                for ghost in self.game.ghosts:
+                    if ghost.last_state == GhostState.FRIGHTENED:
+                        if ghost.timer <= 0.0:
+                            ghost.timer = ghost.FRIGHTENED_DURATION
+                        ghost.reverse_allowed = True
+                    ghost.state = ghost.last_state
+            else:
+                for ghost in self.game.ghosts:
+                    ghost.last_state = ghost.state
+                    ghost.state = GhostState.FROZEN
+            cheat.ghostfreeze(not cheat.ghostfreeze())
+        elif key == pg.K_4 and self.game.pac.lives < 3:
+            self.game.pac.lives += 1
+        elif key == pg.K_5:
+            self.game.level += 1
+            self.game.new_level(self.game.config, self.game.pac.lives)
 
     def _poll_held_direction(self) -> None:
         """Keep a held key moving Pac-Man after a stop or a respawn.
@@ -463,6 +486,13 @@ class GameScreen(State):
         self.high_score = max(self.high_score, self.game.score)
         if self.game.pac.lives < lives_before:
             self._start_death((pac_x, pac_y))
+        cheat: Cheats = self.game.cheats
+        if cheat.speedhack():
+            self.game.pac.speed = 190
+        else:
+            self.game.pac.speed = 85
+        if cheat.invicible():
+            print("TODO")
 
     def _maze_bounds(self) -> tuple[int, int, int, int]:
         """Return the left, top, right and bottom of the maze."""
@@ -533,41 +563,43 @@ class GameScreen(State):
                 self._life_icon,
                 self._life_icon.get_rect(topleft=(left + index * 26, y)),
             )
-        theme.draw_text(
-            screen,
-            "1 Invincible",
-            theme.small_font,
-            theme.accent,
-            midbottom=(center - 210, y + 19),
-        )
-        theme.draw_text(
-            screen,
-            "2 Speedhack",
-            theme.small_font,
-            theme.accent,
-            midbottom=(center - 90, y + 19),
-        )
-        theme.draw_text(
-            screen,
-            "3 Add live",
-            theme.small_font,
-            theme.accent,
-            midbottom=(center + 20, y + 19),
-        )
-        theme.draw_text(
-            screen,
-            "4 Skip level",
-            theme.small_font,
-            theme.accent,
-            midbottom=(center + 135, y + 19),
-        )
-        theme.draw_text(
-            screen,
-            "5 Ghost freeze",
-            theme.small_font,
-            theme.accent,
-            midbottom=(center + 265, y + 19),
-        )
+        cheats: Cheats = self.game.cheats
+        if cheats.enabled:
+            theme.draw_text(
+                screen,
+                "1 Invincible",
+                theme.small_font,
+                theme.accent if cheats.invicible() else theme.text_dim,
+                midbottom=(center - 210, y + 19),
+            )
+            theme.draw_text(
+                screen,
+                "2 Speedhack",
+                theme.small_font,
+                theme.accent if cheats.speedhack() else theme.text_dim,
+                midbottom=(center - 90, y + 19),
+            )
+            theme.draw_text(
+                screen,
+                "3 Ghost freeze",
+                theme.small_font,
+                theme.accent if cheats.ghostfreeze() else theme.text_dim,
+                midbottom=(center + 35, y + 19),
+            )
+            theme.draw_text(
+                screen,
+                "4 Add live",
+                theme.small_font,
+                theme.text_color,
+                midbottom=(center + 155, y + 19),
+            )
+            theme.draw_text(
+                screen,
+                "5 Skip level",
+                theme.small_font,
+                theme.text_color,
+                midbottom=(center + 270, y + 19),
+            )
 
     def draw(self, screen: pg.Surface) -> None:
         """Draw the maze, actors and the two arcade HUD rows."""

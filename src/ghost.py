@@ -25,18 +25,18 @@ from .models import (
 )
 from .sprites import Sprites
 
-# Seconds between each ghost's release after Pac-Man's first input.
 GHOST_RELEASE_INTERVAL: float = 2.0
 
 
 class GhostState(Enum):
     """Ghost states."""
 
-    CHASE = auto()  # normal behaviour, hunting pac-man
-    SCATTER = auto()  # normal behaviour, going to their corner
-    FRIGHTENED = auto()  # blue and edible (super gum)
-    DEAD_PATHING = auto()  # floating eyes returning to spawn
-    DEAD_WAITING = auto()  # reached corner, waiting to respawn
+    FROZEN = auto()
+    CHASE = auto()
+    SCATTER = auto()
+    FRIGHTENED = auto()
+    DEAD_PATHING = auto()
+    DEAD_WAITING = auto()
 
 
 class Ghost:
@@ -48,8 +48,6 @@ class Ghost:
     """
 
     COLOR: str = "red"
-    # (top, left) corner this ghost owns. It is both its spawn tile and
-    # the tile it retreats to while frightened or dead.
     CORNER: ClassVar[tuple[bool, bool]] = (True, True)
     RESPAWN_DELAY: float = 5.0
     FRIGHTENED_DURATION: float = 7.0
@@ -66,7 +64,6 @@ class Ghost:
         self.maze: MazeGenerator = maze
         self.config: Config = cfg
         self.base_speed: int = speed
-        # seconds after Pac-Man's first input before this ghost appears
         self.release_delay: float = 0.0
 
         self.scatter_corner: Position = self._corner(*self.CORNER)
@@ -74,9 +71,8 @@ class Ghost:
             self.scatter_corner if spawn is None else spawn
         )
 
-        # Ghosts hunt as soon as they are released; SCATTER is available
-        # for a retreat phase and uses the same corner as spawn.
         self.state: GhostState = GhostState.CHASE
+        self.last_state = GhostState.CHASE
         self.timer: float = 0.0
 
         self.row: int = self.spawn_pos.row
@@ -123,7 +119,7 @@ class Ghost:
         """Advance the ghost one frame toward its current target."""
         self._tick_timer(dt)
 
-        if self.state == GhostState.DEAD_WAITING:
+        if self.state in (GhostState.DEAD_WAITING, GhostState.FROZEN):
             return
 
         if self.progress == 0.0:
@@ -134,7 +130,6 @@ class Ghost:
         if self.direction is None:
             return
 
-        # Frightened ghosts are slower, floating eyes are much faster.
         current_speed: float = float(self.base_speed)
         if self.state == GhostState.FRIGHTENED:
             current_speed *= 0.6
@@ -219,9 +214,7 @@ class Ghost:
         if self.reverse_allowed and not at_target:
             choices: list[int] = list(options)
         else:
-            choices = [
-                direction for direction in options if direction != back
-            ]
+            choices = [direction for direction in options if direction != back]
         if not choices:
             choices = options
 
@@ -305,10 +298,12 @@ class Ghost:
             return
 
         spr: pygame.Surface
-        if self.state == GhostState.FRIGHTENED:
+        if self.state == GhostState.FRIGHTENED or (
+            self.last_state == GhostState.FRIGHTENED
+            and self.state == GhostState.FROZEN
+        ):
             is_flashing: bool = (
-                self.timer < self.FLASH_TIME
-                and int(self.timer * 4) % 2 == 0
+                self.timer < self.FLASH_TIME and int(self.timer * 4) % 2 == 0
             )
             spr = sp.vulnerable(white=is_flashing, frame=self.frame)
         elif self.state == GhostState.DEAD_PATHING:
@@ -359,9 +354,7 @@ class Ghost:
 
         height: int = len(maze)
         width: int = len(maze[0])
-        seen: list[list[bool]] = [
-            [False] * width for _ in range(height)
-        ]
+        seen: list[list[bool]] = [[False] * width for _ in range(height)]
         seen[start_row][start_col] = True
 
         queue: deque[tuple[int, int, int]] = deque()
@@ -412,9 +405,12 @@ class Ghost:
             GhostState.DEAD_PATHING,
             GhostState.DEAD_WAITING,
         ):
-            self.state = GhostState.FRIGHTENED
-            self.timer = self.FRIGHTENED_DURATION
-            self.reverse_allowed = True
+            if self.state == GhostState.FROZEN:
+                self.last_state = GhostState.FRIGHTENED
+            else:
+                self.state = GhostState.FRIGHTENED
+                self.timer = self.FRIGHTENED_DURATION
+                self.reverse_allowed = True
 
 
 class Blinky(Ghost):
@@ -492,9 +488,7 @@ class Clyde(Ghost):
         self, pac: PacMan, blinky: Ghost | None = None
     ) -> Position:
         """Chase Pac-Man but retreat when he is close."""
-        dist_sq: int = (self.row - pac.row) ** 2 + (
-            self.col - pac.col
-        ) ** 2
+        dist_sq: int = (self.row - pac.row) ** 2 + (self.col - pac.col) ** 2
         if dist_sq < self.SHY_RADIUS**2:
             return self.scatter_corner
         return Position(pac.row, pac.col)
