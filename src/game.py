@@ -6,7 +6,7 @@ import pygame
 from mazegenerator import MazeGenerator
 
 from .db import Database
-from .ghost import Ghost, spawn_ghosts
+from .ghost import Ghost, spawn_ghosts, GhostState
 from .models import (
     CELL_SIZE,
     OFFSET,
@@ -49,7 +49,6 @@ class Game:
         self.to_spawn: list[Ghost] = []
         self.spawn_timer: float = 0.0
         self.first_input: bool = False
-        self.fright_timer: float = 0.0
 
     def init_game(
         self,
@@ -261,14 +260,15 @@ class Game:
         for ghost in self.ghosts:
             ghost.target = ghost.chase_target(self.pac, blinky)
             ghost.update(dt)
-            if (
-                ghost.x - CELL_SIZE / 2 <= self.pac.x
-                and ghost.x + CELL_SIZE / 2 >= self.pac.x
-            ) and (
-                ghost.y - CELL_SIZE / 2 <= self.pac.y
-                and ghost.y + CELL_SIZE / 2 >= self.pac.y
+            if ghost.state == GhostState.FRIGHTENED:
+                ghost.die()
+            elif ghost.state in (
+                GhostState.DEAD_PATHING,
+                GhostState.DEAD_WAITING
             ):
-                self.die()
+                pass
+            else:
+               self.die()
                 break
         self.score += eaten * self.config.pp_pacgum
         if not self.pacgums:
