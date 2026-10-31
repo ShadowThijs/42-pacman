@@ -260,16 +260,23 @@ class Game:
         for ghost in self.ghosts:
             ghost.target = ghost.chase_target(self.pac, blinky)
             ghost.update(dt)
-            if ghost.state == GhostState.FRIGHTENED:
-                ghost.die()
-            elif ghost.state in (
-                GhostState.DEAD_PATHING,
-                GhostState.DEAD_WAITING
+            if (
+                ghost.x - CELL_SIZE / 2 <= self.pac.x
+                and ghost.x + CELL_SIZE / 2 >= self.pac.x
+            ) and (
+                ghost.y - CELL_SIZE / 2 <= self.pac.y
+                and ghost.y + CELL_SIZE / 2 >= self.pac.y
             ):
-                pass
-            else:
-               self.die()
-                break
+                if ghost.state == GhostState.FRIGHTENED:
+                    ghost.die()
+                elif ghost.state in (
+                    GhostState.DEAD_PATHING,
+                    GhostState.DEAD_WAITING,
+                ):
+                    pass
+                else:
+                    self.die()
+                    break
         self.score += eaten * self.config.pp_pacgum
         if not self.pacgums:
             self.level += 1
