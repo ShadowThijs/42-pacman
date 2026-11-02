@@ -338,13 +338,14 @@ class Game:
         blinky: Ghost | None = self.ghosts[0] if self.ghosts else None
         for ghost in self.ghosts:
             ghost.update(dt, self.pac, blinky)
-            if ghost.state == GhostState.FROZEN or not self._touches_pac(
-                ghost
-            ):
+            if not self._touches_pac(ghost):
                 continue
             if ghost.is_frightened():
                 ghost.die()
                 self.score += self.config.pp_ghost
+            elif ghost.state == GhostState.FROZEN:
+                # A frozen ghost that is not edible stays harmless.
+                continue
             elif not invincible and ghost.state not in (
                 GhostState.DEAD_PATHING,
                 GhostState.DEAD_WAITING,

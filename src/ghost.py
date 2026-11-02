@@ -333,23 +333,27 @@ class Ghost:
 
     def sprite(self, sp: Sprites) -> pygame.Surface | None:
         """Return the current sprite, or ``None`` if nothing is visible."""
-        if self.state == GhostState.DEAD_WAITING:
+        state: GhostState = self._effective_state()
+        if state == GhostState.DEAD_WAITING:
             return None
         if self.is_frightened():
             is_flashing: bool = (
                 self.timer < self.FLASH_TIME and int(self.timer * 4) % 2 == 0
             )
             return sp.vulnerable(white=is_flashing, frame=self.frame)
-        if self.state == GhostState.DEAD_PATHING:
+        if state == GhostState.DEAD_PATHING:
             return sp.eyes(self.facing)
         return sp.ghost(self.COLOR, self.facing, self.frame)
 
     def is_frightened(self) -> bool:
-        """Return whether the ghost is edible or frozen while vulnerable."""
-        return self.state == GhostState.FRIGHTENED or (
-            self.state == GhostState.FROZEN
-            and self.resume_state == GhostState.FRIGHTENED
-        )
+        """Return whether the ghost is edible, including while frozen."""
+        return self._effective_state() == GhostState.FRIGHTENED
+
+    def _effective_state(self) -> GhostState:
+        """Return the state to use, looking through a freeze."""
+        if self.state == GhostState.FROZEN:
+            return self.resume_state
+        return self.state
 
     @property
     def x(self) -> float:
@@ -430,19 +434,21 @@ class Ghost:
     def die(self) -> None:
         """Triggered when pac-man eats this ghost."""
         self.resume_state = GhostState.DEAD_PATHING
-        self.state = GhostState.DEAD_PATHING
+        if self.state != GhostState.FROZEN:
+            self.state = GhostState.DEAD_PATHING
         self.target = self.spawn_pos
         self.reverse_allowed = True
 
     def frighten(self) -> None:
         """Triggered when pac-man eats a super gum."""
-        if self.state in (
+        if self._effective_state() in (
             GhostState.DEAD_PATHING,
             GhostState.DEAD_WAITING,
         ):
             return
         if self.state == GhostState.FROZEN:
             self.resume_state = GhostState.FRIGHTENED
+            self.timer = self.FRIGHTENED_DURATION
             return
         self.state = GhostState.FRIGHTENED
         self.resume_state = GhostState.FRIGHTENED
@@ -454,7 +460,7 @@ class Ghost:
         if self.state == GhostState.FROZEN:
             return
         if self.state == GhostState.DEAD_WAITING:
-            self.resume_state = GhostState.CHASE
+            self.resume_state = GhostState.DEAD_WAITING
         elif self.state == GhostState.DEAD_PATHING:
             self.resume_state = GhostState.DEAD_PATHING
         elif self.state == GhostState.FRIGHTENED:
@@ -468,13 +474,6 @@ class Ghost:
         if self.state != GhostState.FROZEN:
             return
         resumed: GhostState = self.resume_state
-        if resumed in (GhostState.DEAD_PATHING, GhostState.DEAD_WAITING):
-            self.direction = None
-            self.progress = 0.0
-            self.state = GhostState.DEAD_WAITING
-            self.resume_state = GhostState.DEAD_WAITING
-            self.timer = self.RESPAWN_DELAY
-            return
         self.state = resumed
         if resumed == GhostState.FRIGHTENED:
             self.timer = self.FRIGHTENED_DURATION
