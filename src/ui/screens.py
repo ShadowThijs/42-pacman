@@ -9,7 +9,6 @@ from typing import TYPE_CHECKING
 import pygame as pg
 
 from src import Cheats
-from src.ghost import GhostState
 from src.models import CELL_SIZE, OFFSET, Colors, Direction
 from src.state import State
 from src.ui.components import Button
@@ -65,6 +64,13 @@ MOVE_KEYS: dict[int, int] = {
     pg.K_RIGHT: Direction.East,
     pg.K_d: Direction.East,
 }
+CHEAT_HINTS: tuple[tuple[str, int], ...] = (
+    ("1 Invincible", -210),
+    ("2 Speedhack", -90),
+    ("3 Ghost freeze", 35),
+    ("4 Add live", 155),
+    ("5 Skip level", 270),
+)
 
 
 def _safe_name(name: str) -> str:
@@ -393,6 +399,15 @@ class GameScreen(State):
         )
         self._frame_without_pacman: pg.Surface | None = None
         self._last_move_key: int | None = None
+        self._cheat_labels: dict[
+            str, tuple[pg.Surface, pg.Surface]
+        ] = {
+            text: (
+                theme.render_text(text, theme.small_font, theme.text_dim),
+                theme.render_text(text, theme.small_font, theme.accent),
+            )
+            for text, _ in CHEAT_HINTS
+        }
 
     def handle_event(self, event: pg.event.Event) -> None:
         """Translate input into movement, pause, or quit."""
@@ -415,18 +430,9 @@ class GameScreen(State):
         elif key == pg.K_2:
             cheat.speedhack(not cheat.speedhack())
         elif key == pg.K_3:
-            if cheat.ghostfreeze():
-                for ghost in self.game.ghosts:
-                    if ghost.last_state == GhostState.FRIGHTENED:
-                        if ghost.timer <= 0.0:
-                            ghost.timer = ghost.FRIGHTENED_DURATION
-                        ghost.reverse_allowed = True
-                    ghost.state = ghost.last_state
-            else:
-                for ghost in self.game.ghosts:
-                    ghost.last_state = ghost.state
-                    ghost.state = GhostState.FROZEN
-            cheat.ghostfreeze(not cheat.ghostfreeze())
+            frozen: bool = not cheat.ghostfreeze()
+            cheat.ghostfreeze(frozen)
+            self.game.set_ghost_freeze(frozen)
         elif key == pg.K_4 and self.game.pac.lives < 3:
             self.game.pac.lives += 1
         elif key == pg.K_5:
@@ -486,13 +492,7 @@ class GameScreen(State):
         self.high_score = max(self.high_score, self.game.score)
         if self.game.pac.lives < lives_before:
             self._start_death((pac_x, pac_y))
-        cheat: Cheats = self.game.cheats
-        if cheat.speedhack():
-            self.game.pac.speed = 190
-        else:
-            self.game.pac.speed = 85
-        if cheat.invicible():
-            print("TODO")
+        self.game.apply_cheats()
 
     def _maze_bounds(self) -> tuple[int, int, int, int]:
         """Return the left, top, right and bottom of the maze."""
@@ -556,7 +556,6 @@ class GameScreen(State):
         left, _, right, bottom = self._maze_bounds()
         center: int = (left + right) // 2
         y: int = bottom + 6
-        theme = self.theme
         lives: int = max(self.game.pac.lives, 0)
         for index in range(min(lives, 5)):
             screen.blit(
@@ -565,41 +564,22 @@ class GameScreen(State):
             )
         cheats: Cheats = self.game.cheats
         if cheats.enabled:
-            theme.draw_text(
-                screen,
-                "1 Invincible",
-                theme.small_font,
-                theme.accent if cheats.invicible() else theme.text_dim,
-                midbottom=(center - 210, y + 19),
+            active: tuple[bool, ...] = (
+                cheats.invicible(),
+                cheats.speedhack(),
+                cheats.ghostfreeze(),
+                False,
+                False,
             )
-            theme.draw_text(
-                screen,
-                "2 Speedhack",
-                theme.small_font,
-                theme.accent if cheats.speedhack() else theme.text_dim,
-                midbottom=(center - 90, y + 19),
-            )
-            theme.draw_text(
-                screen,
-                "3 Ghost freeze",
-                theme.small_font,
-                theme.accent if cheats.ghostfreeze() else theme.text_dim,
-                midbottom=(center + 35, y + 19),
-            )
-            theme.draw_text(
-                screen,
-                "4 Add live",
-                theme.small_font,
-                theme.text_color,
-                midbottom=(center + 155, y + 19),
-            )
-            theme.draw_text(
-                screen,
-                "5 Skip level",
-                theme.small_font,
-                theme.text_color,
-                midbottom=(center + 270, y + 19),
-            )
+            for (text, offset), is_active in zip(
+                CHEAT_HINTS, active, strict=True
+            ):
+                dim, lit = self._cheat_labels[text]
+                label: pg.Surface = lit if is_active else dim
+                screen.blit(
+                    label,
+                    label.get_rect(midbottom=(center + offset, y + 19)),
+                )
 
     def draw(self, screen: pg.Surface) -> None:
         """Draw the maze, actors and the two arcade HUD rows."""
@@ -608,12 +588,11 @@ class GameScreen(State):
         self.game.render_level()
         self.game.draw_actors(screen, include_pacman=False)
         self._draw_bottom_hud(screen)
-        if (
-            self._frame_without_pacman is None
-            or self._frame_without_pacman.get_size() != screen.get_size()
-        ):
-            self._frame_without_pacman = pg.Surface(screen.get_size())
-        self._frame_without_pacman.blit(screen, (0, 0))
+        cached: pg.Surface | None = self._frame_without_pacman
+        if cached is None or cached.get_size() != screen.get_size():
+            cached = pg.Surface(screen.get_size())
+            self._frame_without_pacman = cached
+        cached.blit(screen, (0, 0))
         self.game.pac.draw(screen, self.game.sprites)
         if not self.game.first_input:
             left, top, right, bottom = self._maze_bounds()

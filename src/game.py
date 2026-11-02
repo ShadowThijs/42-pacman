@@ -2,6 +2,7 @@
 
 import math
 import random
+import secrets
 
 import pygame
 from mazegenerator import MazeGenerator
@@ -20,6 +21,12 @@ from .models import (
 from .player import PacMan
 from .sprites import Sprites
 from .state import StateManager
+
+PACMAN_SPEED: int = 85
+SPEEDHACK_SPEED: int = 190
+SUPERGUM_RADIUS: int = 8
+SUPERGUM_PHASE_MS: float = 150.0
+PACGUM_RADIUS: int = 4
 
 
 class Game:
@@ -53,6 +60,9 @@ class Game:
         self.spawn_timer: float = 0.0
         self.first_input: bool = False
         self._maze_layer: pygame.Surface | None = None
+        self._pellet_layer: pygame.Surface | None = None
+        self._pellets_dirty: bool = True
+        self._supergum_pulse: float = 0.0
         self.cheats: Cheats = Cheats()
 
     def init_game(
@@ -150,6 +160,7 @@ class Game:
         self.pacgums = self.pacgum_locations(self.current_maze)
         self.supergums = self.supergums_location(self.current_maze)
         self._maze_layer = self._build_maze_layer()
+        self._pellets_dirty = True
         self._reset_ghosts()
 
     def _build_maze_layer(self) -> pygame.Surface:
@@ -197,24 +208,32 @@ class Game:
                     )
         return layer
 
-    def _draw_supergums(self) -> None:
-        """Draw the pulsing power pellets."""
-        ox, oy = OFFSET
-        for r, c in self.supergums:
-            cx: int = ox + c * CELL_SIZE + CELL_SIZE // 2
-            cy: int = oy + r * CELL_SIZE + CELL_SIZE // 2
-            pulse: float = (math.sin(pygame.time.get_ticks() / 150) + 1) / 2
-            pygame.draw.circle(
-                self.screen, Colors.purple, (cx, cy), round(8 + pulse)
-            )
-
-    def _draw_pacgums(self) -> None:
-        """Draw the small pellets."""
+    def _draw_pellets(self, layer: pygame.Surface) -> None:
+        """Draw the small pellets and the pulsing power pellets."""
         ox, oy = OFFSET
         for r, c in self.pacgums:
             cx: int = ox + c * CELL_SIZE + CELL_SIZE // 2
             cy: int = oy + r * CELL_SIZE + CELL_SIZE // 2
-            pygame.draw.circle(self.screen, Colors.orange, (cx, cy), 4)
+            pygame.draw.circle(layer, Colors.orange, (cx, cy), PACGUM_RADIUS)
+        radius: int = round(SUPERGUM_RADIUS + self._supergum_pulse)
+        for r, c in self.supergums:
+            sx: int = ox + c * CELL_SIZE + CELL_SIZE // 2
+            sy: int = oy + r * CELL_SIZE + CELL_SIZE // 2
+            pygame.draw.circle(layer, Colors.purple, (sx, sy), radius)
+
+    def _build_pellet_layer(self) -> None:
+        """Re-render the pellets after one was eaten or the size changed."""
+        if (
+            self._pellet_layer is None
+            or self._pellet_layer.get_size() != self.screen.get_size()
+        ):
+            self._pellet_layer = pygame.Surface(
+                self.screen.get_size(), pygame.SRCALPHA
+            )
+        else:
+            self._pellet_layer.fill((0, 0, 0, 0))
+        self._draw_pellets(self._pellet_layer)
+        self._pellets_dirty = False
 
     def render_level(self) -> None:
         """Draw the maze walls and pellets."""
@@ -223,9 +242,15 @@ class Game:
             or self._maze_layer.get_size() != self.screen.get_size()
         ):
             self._maze_layer = self._build_maze_layer()
+            self._pellets_dirty = True
         self.screen.blit(self._maze_layer, (0, 0))
-        self._draw_supergums()
-        self._draw_pacgums()
+        self._supergum_pulse = (
+            math.sin(pygame.time.get_ticks() / SUPERGUM_PHASE_MS) + 1
+        ) / 2
+        if self._pellets_dirty:
+            self._build_pellet_layer()
+        if self._pellet_layer is not None:
+            self.screen.blit(self._pellet_layer, (0, 0))
 
     @staticmethod
     def _walkable_tiles(
@@ -249,14 +274,19 @@ class Game:
         return set(random.sample(eligible, count))
 
     def supergums_location(self, maze: MazeGenerator) -> list[tuple[int, int]]:
-        """Return up to four super gum tiles, clear of gums and Pac-Man."""
+        """Return up to four super gum tiles, clear of gums and Pac-Man.
+
+        Placement uses an entropy-seeded generator so it is not tied to
+        the level seed or to how the global RNG was used before.
+        """
         pac_tile: tuple[int, int] = (self.pac.row, self.pac.col)
         eligible: list[tuple[int, int]] = [
             tile
             for tile in self._walkable_tiles(maze)
             if tile not in self.pacgums and tile != pac_tile
         ]
-        return random.sample(eligible, min(4, len(eligible)))
+        rng: random.Random = random.Random(secrets.randbits(64))
+        return rng.sample(eligible, min(4, len(eligible)))
 
     def quit(self) -> None:
         """Quit application."""
@@ -275,16 +305,34 @@ class Game:
         self.first_input = True
         self.pac.queue(direction)
 
+    def set_ghost_freeze(self, frozen: bool) -> None:
+        """Freeze or release every ghost that is currently on the board."""
+        for ghost in self.ghosts:
+            if frozen:
+                ghost.freeze()
+            else:
+                ghost.unfreeze()
+
+    def apply_cheats(self) -> None:
+        """Apply the cheats that change per-frame movement."""
+        self.pac.speed = (
+            SPEEDHACK_SPEED if self.cheats.speedhack() else PACMAN_SPEED
+        )
+
     def release_ghosts(self, dt: float) -> None:
         """Release queued ghosts once their delay after input has passed."""
         if not self.first_input:
             return
         self.spawn_timer += dt
+        frozen: bool = self.cheats.ghostfreeze()
         while (
             self.to_spawn
             and self.spawn_timer >= self.to_spawn[0].release_delay
         ):
-            self.ghosts.append(self.to_spawn.pop(0))
+            ghost: Ghost = self.to_spawn.pop(0)
+            if frozen:
+                ghost.freeze()
+            self.ghosts.append(ghost)
 
     def update(self, dt: float) -> None:
         """Advance one gameplay frame."""
@@ -299,25 +347,30 @@ class Game:
         pac_tile: tuple[int, int] = (self.pac.row, self.pac.col)
         if pac_tile in self.supergums:
             self.supergums.remove(pac_tile)
+            self._pellets_dirty = True
             self.score += self.config.pp_super_pacgum
             for ghost in self.ghosts:
                 ghost.frighten()
 
         self.release_ghosts(dt)
 
+        invincible: bool = self.cheats.invicible()
         blinky: Ghost | None = self.ghosts[0] if self.ghosts else None
         for ghost in self.ghosts:
             ghost.update(dt, self.pac, blinky)
-            if self._touches_pac(ghost):
-                if ghost.state == GhostState.FRIGHTENED:
-                    ghost.die()
-                    self.score += self.config.pp_ghost
-                elif ghost.state not in (
-                    GhostState.DEAD_PATHING,
-                    GhostState.DEAD_WAITING,
-                ):
-                    self.die()
-                    break
+            if ghost.state == GhostState.FROZEN or not self._touches_pac(
+                ghost
+            ):
+                continue
+            if ghost.is_frightened():
+                ghost.die()
+                self.score += self.config.pp_ghost
+            elif not invincible and ghost.state not in (
+                GhostState.DEAD_PATHING,
+                GhostState.DEAD_WAITING,
+            ):
+                self.die()
+                break
 
         if not self.game_over and not self.pacgums:
             self.level += 1
@@ -337,10 +390,11 @@ class Game:
         include_pacman: bool = True,
     ) -> None:
         """Draw ghosts, and optionally Pac-Man, on top of the maze."""
+        sprites: Sprites = self.sprites
         for ghost in self.ghosts:
-            ghost.draw(screen, self.sprites)
+            ghost.draw(screen, sprites)
         if include_pacman:
-            self.pac.draw(screen, self.sprites)
+            self.pac.draw(screen, sprites)
 
     def leaderboard(self, limit: int = 10) -> list[tuple[str, int]]:
         """Return the best scores from the database."""

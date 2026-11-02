@@ -72,7 +72,7 @@ class Ghost:
         )
 
         self.state: GhostState = GhostState.CHASE
-        self.last_state = GhostState.CHASE
+        self.resume_state: GhostState = GhostState.CHASE
         self.timer: float = 0.0
 
         self.row: int = self.spawn_pos.row
@@ -87,10 +87,16 @@ class Ghost:
         self.anim_frame: int = 0
 
         self.target: Position = self.spawn_pos
+        self._base_px: float = 0.0
+        self._base_py: float = 0.0
+        self._face_dx: float = 0.0
+        self._face_dy: float = 0.0
+        self._sync_geometry()
 
     def reset_to_spawn(self) -> None:
         """Resets ghosts to spawn after pacman dies."""
         self.state = GhostState.CHASE
+        self.resume_state = GhostState.CHASE
         self.timer = 0.0
 
         self.row = self.spawn_pos.row
@@ -101,6 +107,19 @@ class Ghost:
         self.direction = None
         self.reverse_allowed = False
         self.facing = Direction.East
+        self.anim_t = 0.0
+        self.anim_frame = 0
+        self.frame = 1
+        self._sync_geometry()
+
+    def _sync_geometry(self) -> None:
+        """Cache the tile centre and facing offset used by x/y and draw."""
+        ox, oy = OFFSET
+        self._base_px = ox + self.col * CELL_SIZE + CELL_SIZE / 2
+        self._base_py = oy + self.row * CELL_SIZE + CELL_SIZE / 2
+        dx, dy = VECTORS[self.facing]
+        self._face_dx = dx
+        self._face_dy = dy
 
     def _corner(self, top: bool, left: bool) -> Position:
         """Corner tile of the maze grid: (top|bottom, left|right)."""
@@ -117,9 +136,12 @@ class Ghost:
         blinky: Ghost | None,
     ) -> None:
         """Advance the ghost one frame toward its current target."""
+        if self.state == GhostState.FROZEN:
+            return
+
         self._tick_timer(dt)
 
-        if self.state in (GhostState.DEAD_WAITING, GhostState.FROZEN):
+        if self.state == GhostState.DEAD_WAITING:
             return
 
         if self.progress == 0.0:
@@ -143,6 +165,7 @@ class Ghost:
             dx, dy = VECTORS[self.direction]
             self.col += dx
             self.row += dy
+            self._sync_geometry()
 
             if self._reached_spawn():
                 self.progress = 0.0
@@ -153,17 +176,22 @@ class Ghost:
                 self.progress = 0.0
                 return
 
+        self._animate(dt)
+
+    def _animate(self, dt: float) -> None:
+        """Advance the two-frame walk cycle."""
         self.anim_t += dt
         if self.anim_t >= ANIMATION_FRAME_TIME:
             self.anim_t = 0.0
             self.anim_frame = 1 - self.anim_frame
-        self.frame = self.anim_frame + 1
+            self.frame = self.anim_frame + 1
 
     def _tick_timer(self, dt: float) -> None:
         """Advance the state timer and resume normal behaviour when done."""
-        if self.timer <= 0.0:
+        if self.timer > 0.0:
+            self.timer = max(0.0, self.timer - dt)
+        elif self.state != GhostState.DEAD_WAITING:
             return
-        self.timer = max(0.0, self.timer - dt)
         if self.timer > 0.0:
             return
         if self.state in (
@@ -171,6 +199,7 @@ class Ghost:
             GhostState.DEAD_WAITING,
         ):
             self.state = GhostState.CHASE
+            self.resume_state = GhostState.CHASE
             self.reverse_allowed = False
 
     def _reached_spawn(self) -> bool:
@@ -183,6 +212,7 @@ class Ghost:
         ):
             return False
         self.state = GhostState.DEAD_WAITING
+        self.resume_state = GhostState.DEAD_WAITING
         self.timer = self.RESPAWN_DELAY
         return True
 
@@ -236,6 +266,7 @@ class Ghost:
                 self.reverse_allowed = False
             self.direction = nxt
             self.facing = nxt
+            self._face_dx, self._face_dy = VECTORS[nxt]
 
     def _open_directions(self) -> list[int]:
         """Return every direction this ghost may take from its tile."""
@@ -294,42 +325,45 @@ class Ghost:
 
     def draw(self, screen: pygame.Surface, sp: Sprites) -> None:
         """Draw the ghost."""
-        if self.state == GhostState.DEAD_WAITING:
-            return
+        spr: pygame.Surface | None = self.sprite(sp)
+        if spr is not None:
+            screen.blit(
+                spr, spr.get_rect(center=(round(self.x), round(self.y)))
+            )
 
-        spr: pygame.Surface
-        if self.state == GhostState.FRIGHTENED or (
-            self.last_state == GhostState.FRIGHTENED
-            and self.state == GhostState.FROZEN
-        ):
+    def sprite(self, sp: Sprites) -> pygame.Surface | None:
+        """Return the current sprite, or ``None`` if nothing is visible."""
+        if self.state == GhostState.DEAD_WAITING:
+            return None
+        if self.is_frightened():
             is_flashing: bool = (
                 self.timer < self.FLASH_TIME and int(self.timer * 4) % 2 == 0
             )
-            spr = sp.vulnerable(white=is_flashing, frame=self.frame)
-        elif self.state == GhostState.DEAD_PATHING:
-            spr = sp.eyes(self.facing)
-        else:
-            spr = sp.ghost(self.COLOR, self.facing, self.frame)
+            return sp.vulnerable(white=is_flashing, frame=self.frame)
+        if self.state == GhostState.DEAD_PATHING:
+            return sp.eyes(self.facing)
+        return sp.ghost(self.COLOR, self.facing, self.frame)
 
-        screen.blit(spr, spr.get_rect(center=(round(self.x), round(self.y))))
+    def is_frightened(self) -> bool:
+        """Return whether the ghost is edible or frozen while vulnerable."""
+        return self.state == GhostState.FRIGHTENED or (
+            self.state == GhostState.FROZEN
+            and self.resume_state == GhostState.FRIGHTENED
+        )
 
     @property
     def x(self) -> float:
         """Pixel x, interpolated between current tile and the next."""
-        ox, _ = OFFSET
-        base: float = ox + self.col * CELL_SIZE + CELL_SIZE / 2
         if self.direction is None:
-            return base
-        return base + VECTORS[self.direction][0] * CELL_SIZE * self.progress
+            return self._base_px
+        return self._base_px + self._face_dx * CELL_SIZE * self.progress
 
     @property
     def y(self) -> float:
         """Pixel y, interpolated between current tile and the next."""
-        _, oy = OFFSET
-        base: float = oy + self.row * CELL_SIZE + CELL_SIZE / 2
         if self.direction is None:
-            return base
-        return base + VECTORS[self.direction][1] * CELL_SIZE * self.progress
+            return self._base_py
+        return self._base_py + self._face_dy * CELL_SIZE * self.progress
 
     @staticmethod
     def _shortest_direction(
@@ -395,22 +429,57 @@ class Ghost:
 
     def die(self) -> None:
         """Triggered when pac-man eats this ghost."""
+        self.resume_state = GhostState.DEAD_PATHING
         self.state = GhostState.DEAD_PATHING
         self.target = self.spawn_pos
         self.reverse_allowed = True
 
     def frighten(self) -> None:
         """Triggered when pac-man eats a super gum."""
-        if self.state not in (
+        if self.state in (
             GhostState.DEAD_PATHING,
             GhostState.DEAD_WAITING,
         ):
-            if self.state == GhostState.FROZEN:
-                self.last_state = GhostState.FRIGHTENED
-            else:
-                self.state = GhostState.FRIGHTENED
-                self.timer = self.FRIGHTENED_DURATION
-                self.reverse_allowed = True
+            return
+        if self.state == GhostState.FROZEN:
+            self.resume_state = GhostState.FRIGHTENED
+            return
+        self.state = GhostState.FRIGHTENED
+        self.resume_state = GhostState.FRIGHTENED
+        self.timer = self.FRIGHTENED_DURATION
+        self.reverse_allowed = True
+
+    def freeze(self) -> None:
+        """Hold the ghost in place until it is unfrozen."""
+        if self.state == GhostState.FROZEN:
+            return
+        if self.state == GhostState.DEAD_WAITING:
+            self.resume_state = GhostState.CHASE
+        elif self.state == GhostState.DEAD_PATHING:
+            self.resume_state = GhostState.DEAD_PATHING
+        elif self.state == GhostState.FRIGHTENED:
+            self.resume_state = GhostState.FRIGHTENED
+        else:
+            self.resume_state = self.state
+        self.state = GhostState.FROZEN
+
+    def unfreeze(self) -> None:
+        """Resume the behaviour the ghost had when it was frozen."""
+        if self.state != GhostState.FROZEN:
+            return
+        resumed: GhostState = self.resume_state
+        if resumed in (GhostState.DEAD_PATHING, GhostState.DEAD_WAITING):
+            self.direction = None
+            self.progress = 0.0
+            self.state = GhostState.DEAD_WAITING
+            self.resume_state = GhostState.DEAD_WAITING
+            self.timer = self.RESPAWN_DELAY
+            return
+        self.state = resumed
+        if resumed == GhostState.FRIGHTENED:
+            self.timer = self.FRIGHTENED_DURATION
+            self.target = self.scatter_corner
+        self.reverse_allowed = True
 
 
 class Blinky(Ghost):

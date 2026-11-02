@@ -39,6 +39,20 @@ class PacMan:
         self.anim_t: float = 0.0
         self.anim_frame: int = 0
         self.lives: int = lives
+        self._base_px: float = 0.0
+        self._base_py: float = 0.0
+        self._face_dx: float = 0.0
+        self._face_dy: float = 0.0
+        self._sync_geometry()
+
+    def _sync_geometry(self) -> None:
+        """Cache the tile centre and facing offset used by x/y and draw."""
+        ox, oy = OFFSET
+        self._base_px = ox + self.col * CELL_SIZE + CELL_SIZE / 2
+        self._base_py = oy + self.row * CELL_SIZE + CELL_SIZE / 2
+        dx, dy = VECTORS[self.facing]
+        self._face_dx = dx
+        self._face_dy = dy
 
     def queue(self, direction: int) -> None:
         """Remember a direction press for the next tile centre.
@@ -64,6 +78,7 @@ class PacMan:
         self.anim_t = 0.0
         self.anim_frame = 0
         self.frame = 1
+        self._sync_geometry()
 
     def update(
         self,
@@ -98,6 +113,7 @@ class PacMan:
             dx, dy = VECTORS[self.direction]
             self.col += dx
             self.row += dy
+            self._sync_geometry()
             self._decide(maze)
             if self.direction is None:
                 self.progress = 0.0
@@ -130,6 +146,7 @@ class PacMan:
         self.direction = requested
         self.facing = requested
         self.progress = 1.0 - self.progress
+        self._sync_geometry()
         self.pending.clear()
 
     def _decide(self, maze: list[list[int]]) -> None:
@@ -142,6 +159,7 @@ class PacMan:
             if can_move(maze, self.row, self.col, requested):
                 self.direction = requested
                 self.facing = requested
+                self._face_dx, self._face_dy = VECTORS[requested]
                 self.pending.clear()
                 return
 
@@ -158,20 +176,16 @@ class PacMan:
     @property
     def x(self) -> float:
         """Pixel x, interpolated between current tile and the next."""
-        ox, _ = OFFSET
-        base: float = ox + self.col * CELL_SIZE + CELL_SIZE / 2
         if self.direction is None:
-            return base
-        return base + VECTORS[self.direction][0] * CELL_SIZE * self.progress
+            return self._base_px
+        return self._base_px + self._face_dx * CELL_SIZE * self.progress
 
     @property
     def y(self) -> float:
         """Pixel y, interpolated between current tile and the next."""
-        _, oy = OFFSET
-        base: float = oy + self.row * CELL_SIZE + CELL_SIZE / 2
         if self.direction is None:
-            return base
-        return base + VECTORS[self.direction][1] * CELL_SIZE * self.progress
+            return self._base_py
+        return self._base_py + self._face_dy * CELL_SIZE * self.progress
 
     @staticmethod
     def _tile_at(x: float, y: float) -> tuple[int, int]:
