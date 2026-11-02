@@ -60,8 +60,6 @@ class Game:
         self.spawn_timer: float = 0.0
         self.first_input: bool = False
         self._maze_layer: pygame.Surface | None = None
-        self._pellet_layer: pygame.Surface | None = None
-        self._pellets_dirty: bool = True
         self._supergum_pulse: float = 0.0
         self.cheats: Cheats = Cheats()
 
@@ -160,7 +158,6 @@ class Game:
         self.pacgums = self.pacgum_locations(self.current_maze)
         self.supergums = self.supergums_location(self.current_maze)
         self._maze_layer = self._build_maze_layer()
-        self._pellets_dirty = True
         self._reset_ghosts()
 
     def _build_maze_layer(self) -> pygame.Surface:
@@ -208,32 +205,20 @@ class Game:
                     )
         return layer
 
-    def _draw_pellets(self, layer: pygame.Surface) -> None:
+    def _draw_pellets(self) -> None:
         """Draw the small pellets and the pulsing power pellets."""
         ox, oy = OFFSET
         for r, c in self.pacgums:
             cx: int = ox + c * CELL_SIZE + CELL_SIZE // 2
             cy: int = oy + r * CELL_SIZE + CELL_SIZE // 2
-            pygame.draw.circle(layer, Colors.orange, (cx, cy), PACGUM_RADIUS)
+            pygame.draw.circle(
+                self.screen, Colors.orange, (cx, cy), PACGUM_RADIUS
+            )
         radius: int = round(SUPERGUM_RADIUS + self._supergum_pulse)
         for r, c in self.supergums:
             sx: int = ox + c * CELL_SIZE + CELL_SIZE // 2
             sy: int = oy + r * CELL_SIZE + CELL_SIZE // 2
-            pygame.draw.circle(layer, Colors.purple, (sx, sy), radius)
-
-    def _build_pellet_layer(self) -> None:
-        """Re-render the pellets after one was eaten or the size changed."""
-        if (
-            self._pellet_layer is None
-            or self._pellet_layer.get_size() != self.screen.get_size()
-        ):
-            self._pellet_layer = pygame.Surface(
-                self.screen.get_size(), pygame.SRCALPHA
-            )
-        else:
-            self._pellet_layer.fill((0, 0, 0, 0))
-        self._draw_pellets(self._pellet_layer)
-        self._pellets_dirty = False
+            pygame.draw.circle(self.screen, Colors.purple, (sx, sy), radius)
 
     def render_level(self) -> None:
         """Draw the maze walls and pellets."""
@@ -242,15 +227,11 @@ class Game:
             or self._maze_layer.get_size() != self.screen.get_size()
         ):
             self._maze_layer = self._build_maze_layer()
-            self._pellets_dirty = True
         self.screen.blit(self._maze_layer, (0, 0))
         self._supergum_pulse = (
             math.sin(pygame.time.get_ticks() / SUPERGUM_PHASE_MS) + 1
         ) / 2
-        if self._pellets_dirty:
-            self._build_pellet_layer()
-        if self._pellet_layer is not None:
-            self.screen.blit(self._pellet_layer, (0, 0))
+        self._draw_pellets()
 
     @staticmethod
     def _walkable_tiles(
@@ -347,7 +328,6 @@ class Game:
         pac_tile: tuple[int, int] = (self.pac.row, self.pac.col)
         if pac_tile in self.supergums:
             self.supergums.remove(pac_tile)
-            self._pellets_dirty = True
             self.score += self.config.pp_super_pacgum
             for ghost in self.ghosts:
                 ghost.frighten()

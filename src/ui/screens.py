@@ -494,6 +494,21 @@ class GameScreen(State):
             self._start_death((pac_x, pac_y))
         self.game.apply_cheats()
 
+    def _clear_hud_band(self, screen: pg.Surface) -> None:
+        """Clear only the margins, since the maze layer covers the rest."""
+        left, top, right, bottom = self._maze_bounds()
+        width: int = screen.get_width()
+        screen.fill(Colors.black, pg.Rect(0, 0, width, top))
+        screen.fill(
+            Colors.black,
+            pg.Rect(0, bottom, width, screen.get_height() - bottom),
+        )
+        screen.fill(Colors.black, pg.Rect(0, top, left, bottom - top))
+        screen.fill(
+            Colors.black,
+            pg.Rect(right, top, width - right, bottom - top),
+        )
+
     def _maze_bounds(self) -> tuple[int, int, int, int]:
         """Return the left, top, right and bottom of the maze."""
         left: int = OFFSET[0]
@@ -583,7 +598,7 @@ class GameScreen(State):
 
     def draw(self, screen: pg.Surface) -> None:
         """Draw the maze, actors and the two arcade HUD rows."""
-        screen.fill(Colors.black)
+        self._clear_hud_band(screen)
         self._draw_top_hud(screen)
         self.game.render_level()
         self.game.draw_actors(screen, include_pacman=False)
