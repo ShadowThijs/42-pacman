@@ -126,5 +126,5 @@ class StateManager:
 
     def draw(self, screen: pg.Surface) -> None:
         """Draw the whole stack from bottom to top."""
-        for state in self._stack:
+        for state in tuple(self._stack):
             state.draw(screen)
