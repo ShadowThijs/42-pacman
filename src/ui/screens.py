@@ -85,9 +85,9 @@ def _safe_name(name: str) -> str:
 
 
 def _format_time(seconds: float) -> str:
-    """Format remaining level time as ``M:SS``."""
+    """Format remaining time with glyphs the arcade font supports."""
     remaining: int = max(0, math.ceil(seconds))
-    return f"{remaining // 60}:{remaining % 60:02d}"
+    return f"{remaining // 60}M{remaining % 60:02d}S"
 
 
 def _rank_label(index: int) -> str:
@@ -556,7 +556,7 @@ class GameScreen(State):
         )
         theme.draw_text(
             screen,
-            f"{game.level:02d}/{game.config.max_levels:02d}",
+            f"{game.level:02d} OF {game.config.max_levels:02d}",
             theme.score_font,
             theme.accent,
             topright=(right - 120, 18),

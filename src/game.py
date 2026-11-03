@@ -391,10 +391,11 @@ class Game:
         if self.game_over or self.victory:
             return
 
-        self.level_time_left = max(0.0, self.level_time_left - dt)
-        if self.level_time_left <= 0.0:
-            self._time_up()
-            return
+        if self.first_input:
+            self.level_time_left = max(0.0, self.level_time_left - dt)
+            if self.level_time_left <= 0.0:
+                self._time_up()
+                return
 
         eaten: int = self.pac.update(
             dt, self.current_maze.maze, self.pacgums
