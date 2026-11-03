@@ -12,6 +12,8 @@ CELL_SIZE: int = 36
 WALL_THICKNESS: int = 2
 OFFSET: tuple[int, int] = (50, 50)
 ANIMATION_FRAME_TIME: float = 0.2
+MAX_NAME_LENGTH: int = 10
+ALLOWED_NAME_CHARS: str = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 "
 
 
 def clean_json(text: str) -> str:
@@ -31,6 +33,21 @@ def clean_json(text: str) -> str:
     )
 
 
+def sanitize_name(name: str) -> str:
+    """Return a leaderboard-safe version of ``name``.
+
+    Names are uppercased and limited to :data:`MAX_NAME_LENGTH`
+    characters.  Only characters in :data:`ALLOWED_NAME_CHARS` are kept;
+    anything else becomes a separator.  Repeated and leading/trailing
+    spaces are collapsed away.  An empty result means the name should be
+    treated as missing.
+    """
+    cleaned: str = "".join(
+        char if char in ALLOWED_NAME_CHARS else " " for char in name.upper()
+    )
+    return " ".join(cleaned.split())[:MAX_NAME_LENGTH]
+
+
 class Config:
     """Config class.
 
@@ -48,6 +65,7 @@ class Config:
     pp_ghost: int
     seed: int
     level_max_time: int
+    max_levels: int
 
     DEFAULTS: ClassVar[dict[str, Any]] = {
         "highscore_db": "database.db",
@@ -61,6 +79,7 @@ class Config:
         "pp_ghost": 200,
         "seed": 42,
         "level_max_time": 90,
+        "max_levels": 10,
     }
 
     def __init__(self, cfg_json: str) -> None:
@@ -94,6 +113,14 @@ class Config:
                 print(f"Missing '{key}' in config, using default: {default!r}")
             elif loaded and not isinstance(value, type(default)):
                 print(f"Invalid type for '{key}', using default: {default!r}")
+                value = default
+            elif (
+                key in ("level_max_time", "max_levels")
+                and value < 1
+            ):
+                print(
+                    f"Invalid value for '{key}', using default: {default!r}"
+                )
                 value = default
             setattr(self, key, value)
 

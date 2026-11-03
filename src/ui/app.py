@@ -11,6 +11,7 @@ from src.ui.screens import (
     LeaderboardScreen,
     NameEntryScreen,
     StartMenuScreen,
+    VictoryScreen,
 )
 from src.ui.theme import Theme
 
@@ -66,6 +67,18 @@ class App:
         """Show the name prompt after the death animation."""
         self.game.states.reset(
             NameEntryScreen(
+                self.game,
+                self.theme,
+                self,
+                self.game.score,
+                self.last_game_frame,
+            )
+        )
+
+    def show_victory(self) -> None:
+        """Show the win prompt after the final level has been cleared."""
+        self.game.states.reset(
+            VictoryScreen(
                 self.game,
                 self.theme,
                 self,

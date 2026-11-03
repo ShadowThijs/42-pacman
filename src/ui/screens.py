@@ -9,7 +9,15 @@ from typing import TYPE_CHECKING
 import pygame as pg
 
 from src import Cheats
-from src.models import CELL_SIZE, OFFSET, Colors, Direction
+from src.models import (
+    ALLOWED_NAME_CHARS,
+    CELL_SIZE,
+    MAX_NAME_LENGTH,
+    OFFSET,
+    Colors,
+    Direction,
+    sanitize_name,
+)
 from src.state import State
 from src.ui.components import Button
 from src.ui.theme import Theme
@@ -18,8 +26,6 @@ if TYPE_CHECKING:
     from src.game import Game
     from src.ui.app import App
 
-MAX_NAME_LENGTH: int = 12
-ALLOWED_NAME_CHARS: str = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 "
 DEATH_FRAME_TIME: float = 0.075
 DEATH_HOLD: float = 0.45
 GHOST_COLORS: tuple[str, ...] = ("red", "pink", "cyan", "orange")
@@ -75,11 +81,13 @@ CHEAT_HINTS: tuple[tuple[str, int], ...] = (
 
 def _safe_name(name: str) -> str:
     """Return a name that the arcade font can render."""
-    cleaned: str = "".join(
-        char if char in ALLOWED_NAME_CHARS else " " for char in name.upper()
-    )
-    cleaned = " ".join(cleaned.split())
-    return cleaned[:MAX_NAME_LENGTH] or "PLAYER"
+    return sanitize_name(name) or "PLAYER"
+
+
+def _format_time(seconds: float) -> str:
+    """Format remaining level time as ``M:SS``."""
+    remaining: int = max(0, math.ceil(seconds))
+    return f"{remaining // 60}:{remaining % 60:02d}"
 
 
 def _rank_label(index: int) -> str:
@@ -436,8 +444,7 @@ class GameScreen(State):
         elif key == pg.K_4 and self.game.pac.lives < 3:
             self.game.pac.lives += 1
         elif key == pg.K_5:
-            self.game.level += 1
-            self.game.new_level(self.game.config, self.game.pac.lives)
+            self.game.complete_level()
 
     def _poll_held_direction(self) -> None:
         """Keep a held key moving Pac-Man after a stop or a respawn.
@@ -490,6 +497,10 @@ class GameScreen(State):
         pac_y: float = self.game.pac.y
         self.game.update(dt)
         self.high_score = max(self.high_score, self.game.score)
+        if self.game.victory:
+            self.app.last_game_frame = self.game.screen.copy()
+            self.app.show_victory()
+            return
         if self.game.pac.lives < lives_before:
             self._start_death((pac_x, pac_y))
         self.game.apply_cheats()
@@ -503,7 +514,7 @@ class GameScreen(State):
         return left, top, right, bottom
 
     def _draw_top_hud(self, screen: pg.Surface) -> None:
-        """Draw 1UP, high score and level above the maze."""
+        """Draw 1UP, high score, level and remaining time above the maze."""
         theme = self.theme
         game = self.game
         left, _, right, _ = self._maze_bounds()
@@ -541,13 +552,32 @@ class GameScreen(State):
             "LEVEL",
             theme.small_font,
             theme.text_color,
+            topright=(right - 120, 2),
+        )
+        theme.draw_text(
+            screen,
+            f"{game.level:02d}/{game.config.max_levels:02d}",
+            theme.score_font,
+            theme.accent,
+            topright=(right - 120, 18),
+        )
+        time_color: tuple[int, int, int] = (
+            Colors.red
+            if game.level_time_left <= 10.0
+            else theme.text_color
+        )
+        theme.draw_text(
+            screen,
+            "TIME",
+            theme.small_font,
+            theme.text_color,
             topright=(right, 2),
         )
         theme.draw_text(
             screen,
-            f"{game.level:02d}",
+            _format_time(game.level_time_left),
             theme.score_font,
-            theme.accent,
+            time_color,
             topright=(right, 18),
         )
 
@@ -676,7 +706,7 @@ class DyingState(State):
 
 
 class NameEntryScreen(State):
-    """Arcade high-score name entry after game over."""
+    """Arcade high-score name entry after a game over or a victory."""
 
     def __init__(
         self,
@@ -685,13 +715,15 @@ class NameEntryScreen(State):
         app: App,
         score: int,
         background: pg.Surface | None = None,
+        victory: bool = False,
     ) -> None:
-        """Create the game-over prompt for ``score``."""
+        """Create the end-of-game prompt for ``score``."""
         super().__init__(game)
         self.theme: Theme = theme
         self.app: App = app
         self.score: int = score
         self.background: pg.Surface | None = background
+        self.victory: bool = victory
         self.name: str = ""
         self.cursor_time: float = 0.0
         self.selected_index: int = 0
@@ -722,7 +754,7 @@ class NameEntryScreen(State):
 
     def _submit(self) -> None:
         """Save the entered name, falling back to PLAYER."""
-        name: str = " ".join(self.name.split()) or "PLAYER"
+        name: str = sanitize_name(self.name) or "PLAYER"
         self.app.submit_score(name, self.score)
 
     def _activate(self) -> None:
@@ -755,7 +787,8 @@ class NameEntryScreen(State):
             else:
                 char: str = event.unicode.upper()
                 if (
-                    char in ALLOWED_NAME_CHARS
+                    len(char) == 1
+                    and char in ALLOWED_NAME_CHARS
                     and len(self.name) < MAX_NAME_LENGTH
                 ):
                     self.name += char
@@ -789,28 +822,51 @@ class NameEntryScreen(State):
             screen.fill(Colors.black)
         self._layout_buttons(screen.get_size())
         center: int = screen.get_width() // 2
-        self.theme.draw_title(
-            screen,
-            "GAME OVER",
-            120,
-            color=Colors.red,
-            shadow_color=(84, 0, 0),
-        )
+        if self.victory:
+            self.theme.draw_title(
+                screen,
+                "YOU WIN",
+                100,
+                color=Colors.yellow,
+                shadow_color=Colors.green,
+            )
+            self.theme.draw_text(
+                screen,
+                "CONGRATULATIONS",
+                self.theme.heading_font,
+                Colors.lime,
+                center=(center, 195),
+            )
+            self.theme.draw_text(
+                screen,
+                "ALL LEVELS COMPLETE",
+                self.theme.body_font,
+                Colors.white,
+                center=(center, 242),
+            )
+        else:
+            self.theme.draw_title(
+                screen,
+                "GAME OVER",
+                120,
+                color=Colors.red,
+                shadow_color=(84, 0, 0),
+            )
         self.theme.draw_text(
             screen,
             f"SCORE {self.score:06d}",
             self.theme.score_font,
             Colors.white,
-            center=(center, 250),
+            center=(center, 290 if self.victory else 250),
         )
         self.theme.draw_text(
             screen,
             "ENTER YOUR NAME",
             self.theme.body_font,
             Colors.yellow,
-            center=(center, 330),
+            center=(center, 350 if self.victory else 330),
         )
-        input_y: int = 372
+        input_y: int = 392 if self.victory else 372
         text_surface: pg.Surface = self.theme.render_text(
             self.name,
             self.theme.input_font,
@@ -845,6 +901,28 @@ class NameEntryScreen(State):
             button.selected = index == self.selected_index
             button.draw(screen)
         self.theme.draw_footer(screen, "ENTER CONFIRM  ESC SKIP")
+
+
+class VictoryScreen(NameEntryScreen):
+    """High-score entry shown after clearing the final level."""
+
+    def __init__(
+        self,
+        game: Game,
+        theme: Theme,
+        app: App,
+        score: int,
+        background: pg.Surface | None = None,
+    ) -> None:
+        """Create the victory prompt for ``score``."""
+        super().__init__(
+            game,
+            theme,
+            app,
+            score,
+            background,
+            victory=True,
+        )
 
 
 class LeaderboardScreen(State):

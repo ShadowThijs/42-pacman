@@ -2,7 +2,7 @@
 
 import math
 import random
-import secrets
+from collections import deque
 
 import pygame
 from mazegenerator import MazeGenerator
@@ -52,7 +52,9 @@ class Game:
         self.sprites: Sprites
         self.score: int = 0
         self.level: int = 1
+        self.level_time_left: float = 0.0
         self.game_over: bool = False
+        self.victory: bool = False
         self.db: Database | None = None
         self.states: StateManager = StateManager(self)
         self.ghosts: list[Ghost] = []
@@ -77,6 +79,8 @@ class Game:
         self.running = True
         self.start_level = False
         self.game_over = False
+        self.victory = False
+        self.level_time_left = 0.0
         self.score = 0
         self.level = 1
         self.width = width
@@ -102,6 +106,7 @@ class Game:
         self.score = 0
         self.level = 1
         self.game_over = False
+        self.victory = False
         self.start_level = False
         self.new_level(self.config)
         self.start_level = True
@@ -155,10 +160,18 @@ class Game:
             y,
             lives=cfg.lives if lives is None else lives,
         )
-        self.pacgums = self.pacgum_locations(self.current_maze)
-        self.supergums = self.supergums_location(self.current_maze)
+        self._reset_pellets()
+        self.level_time_left = float(cfg.level_max_time)
         self._maze_layer = self._build_maze_layer()
         self._reset_ghosts()
+
+    def _reset_pellets(self) -> None:
+        """Refill every pellet, including the four corner power pellets."""
+        self.supergums = self.supergums_location(self.current_maze)
+        self.pacgums = self.pacgum_locations(
+            self.current_maze,
+            exclude=set(self.supergums),
+        )
 
     def _build_maze_layer(self) -> pygame.Surface:
         """Pre-render the walls once per level instead of every frame."""
@@ -248,26 +261,67 @@ class Game:
     def pacgum_locations(
         self,
         maze: MazeGenerator,
+        exclude: set[tuple[int, int]] | None = None,
     ) -> set[tuple[int, int]]:
         """Return the configured number of pacgum locations."""
-        eligible: list[tuple[int, int]] = self._walkable_tiles(maze)
+        blocked: set[tuple[int, int]] = (
+            set() if exclude is None else exclude
+        )
+        eligible: list[tuple[int, int]] = [
+            tile
+            for tile in self._walkable_tiles(maze)
+            if tile not in blocked
+        ]
         count: int = max(0, min(self.config.pacgum, len(eligible)))
         return set(random.sample(eligible, count))
 
     def supergums_location(self, maze: MazeGenerator) -> list[tuple[int, int]]:
-        """Return up to four super gum tiles, clear of gums and Pac-Man.
-
-        Placement uses an entropy-seeded generator so it is not tied to
-        the level seed or to how the global RNG was used before.
-        """
+        """Return one walkable tile at each of the maze's four corners."""
+        height: int = len(maze.maze)
+        width: int = len(maze.maze[0])
+        corners: tuple[tuple[int, int], ...] = (
+            (0, 0),
+            (0, width - 1),
+            (height - 1, width - 1),
+            (height - 1, 0),
+        )
         pac_tile: tuple[int, int] = (self.pac.row, self.pac.col)
-        eligible: list[tuple[int, int]] = [
-            tile
-            for tile in self._walkable_tiles(maze)
-            if tile not in self.pacgums and tile != pac_tile
-        ]
-        rng: random.Random = random.Random(secrets.randbits(64))
-        return rng.sample(eligible, min(4, len(eligible)))
+        locations: list[tuple[int, int]] = []
+        for corner in corners:
+            tile: tuple[int, int] | None = self._nearest_walkable(
+                maze, corner
+            )
+            if (
+                tile is not None
+                and tile != pac_tile
+                and tile not in locations
+            ):
+                locations.append(tile)
+        return locations
+
+    @staticmethod
+    def _nearest_walkable(
+        maze: MazeGenerator,
+        start: tuple[int, int],
+    ) -> tuple[int, int] | None:
+        """Return the closest walkable tile to ``start``, or ``None``."""
+        height: int = len(maze.maze)
+        width: int = len(maze.maze[0])
+        seen: set[tuple[int, int]] = {start}
+        queue: deque[tuple[int, int]] = deque([start])
+        while queue:
+            row, col = queue.popleft()
+            if maze.maze[row][col] != Direction.All:
+                return (row, col)
+            for dr, dc in ((-1, 0), (1, 0), (0, -1), (0, 1)):
+                nr, nc = row + dr, col + dc
+                if not (0 <= nr < height and 0 <= nc < width):
+                    continue
+                if (nr, nc) in seen:
+                    continue
+                seen.add((nr, nc))
+                queue.append((nr, nc))
+        return None
 
     def quit(self) -> None:
         """Quit application."""
@@ -280,6 +334,23 @@ class Game:
             self.game_over = True
             return
         self.reset_death()
+
+    def _time_up(self) -> None:
+        """Lose a life and restart the current level when time runs out."""
+        self.level_time_left = float(self.config.level_max_time)
+        self.die()
+        if not self.game_over:
+            self._reset_pellets()
+
+    def complete_level(self) -> None:
+        """Advance to the next level, or win after the final one."""
+        if self.game_over or self.victory:
+            return
+        if self.level >= self.config.max_levels:
+            self.victory = True
+            return
+        self.level += 1
+        self.new_level(self.config, lives=self.pac.lives)
 
     def queue_direction(self, direction: int) -> None:
         """Queue a direction and arm the ghost release schedule."""
@@ -317,7 +388,12 @@ class Game:
 
     def update(self, dt: float) -> None:
         """Advance one gameplay frame."""
-        if self.game_over:
+        if self.game_over or self.victory:
+            return
+
+        self.level_time_left = max(0.0, self.level_time_left - dt)
+        if self.level_time_left <= 0.0:
+            self._time_up()
             return
 
         eaten: int = self.pac.update(
@@ -354,8 +430,7 @@ class Game:
                 break
 
         if not self.game_over and not self.pacgums:
-            self.level += 1
-            self.new_level(self.config, lives=self.pac.lives)
+            self.complete_level()
 
     def _touches_pac(self, ghost: Ghost) -> bool:
         """Return whether the ghost's sprite overlaps Pac-Man's."""

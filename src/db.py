@@ -2,7 +2,7 @@
 
 import sqlite3 as sq
 
-from .models import Config
+from .models import Config, sanitize_name
 
 
 class Database:
@@ -33,8 +33,8 @@ class Database:
             score INTEGER NOT NULL
         )""")
 
-    def get_leaderboard(self, limit: int = 5) -> list[tuple[str, int]]:
-        """Return leaderboard sorted from database."""
+    def get_leaderboard(self, limit: int = 10) -> list[tuple[str, int]]:
+        """Return the best ``limit`` scores, sanitised for display."""
         if not hasattr(self, "cursor"):
             return []
         try:
@@ -47,14 +47,20 @@ class Database:
             """,
                 (limit,),
             )
-            return self.cursor.fetchall() or []
+            rows = self.cursor.fetchall() or []
         except sq.Error:
             return []
+        return [
+            (sanitize_name(name) or "PLAYER", max(0, int(score)))
+            for name, score in rows
+        ]
 
     def add_leaderboard_entry(self, name: str, score: int) -> None:
-        """Add a leaderboard entry to database."""
+        """Add a leaderboard entry, enforcing the name and score rules."""
         if not hasattr(self, "cursor"):
             return
+        safe_name: str = sanitize_name(name) or "PLAYER"
+        safe_score: int = max(0, int(score))
         try:
             self.cursor.execute(
                 """
@@ -63,7 +69,7 @@ class Database:
                 VALUES
                     (?, ?)
             """,
-                (name, score),
+                (safe_name, safe_score),
             )
             self.conn.commit()
         except sq.Error:
