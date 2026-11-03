@@ -1,5 +1,6 @@
 """Sprite helpers."""
 
+import sys
 from pathlib import Path
 
 import pygame
@@ -15,15 +16,27 @@ _DIR_LETTER: dict[int, str] = {
 }
 
 
+def resource_dir() -> Path:
+    """Return the directory holding the bundled resources.
+
+    PyInstaller unpacks one-file builds into ``sys._MEIPASS``.  Running
+    from the repository instead uses the project root next to ``src``.
+    """
+    bundle_root: str | None = getattr(sys, "_MEIPASS", None)
+    if bundle_root is not None:
+        return Path(bundle_root) / "resources"
+    return Path(__file__).resolve().parent.parent / "resources"
+
+
 class Sprites:
     """Sprites class.
 
     Loads and selects renderable sprites from the resources folder.
     """
 
-    def __init__(self, base: str = "resources") -> None:
+    def __init__(self, base: str | Path | None = None) -> None:
         """Init sprite loader with base resources directory."""
-        self.base: Path = Path(base)
+        self.base: Path = resource_dir() if base is None else Path(base)
         self._cache: dict[Path, pygame.Surface] = {}
         self._pacman_cache: dict[
             tuple[int, int], pygame.Surface

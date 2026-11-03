@@ -1,0 +1,94 @@
+name: Build packaged game
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - master
+      - main
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux x86_64
+            os: ubuntu-22.04
+            artifact: 42-pacman-linux
+            path: dist/42-pacman
+          - name: Windows x86_64
+            os: windows-latest
+            artifact: 42-pacman-windows
+            path: dist/42-pacman.exe
+          - name: macOS
+            os: macos-latest
+            artifact: 42-pacman-macos
+            path: 42-pacman-macos.dmg
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Install Python
+        run: uv python install 3.13
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Lint
+        run: |
+          uv run --frozen python -m flake8 src pac-man.py
+          uv run --frozen mypy src pac-man.py --strict
+
+      - name: Build executable
+        run: uv run --frozen pyinstaller --clean --noconfirm 42-pacman.spec
+
+      - name: Verify bundled resources
+        if: runner.os == 'Linux'
+        run: |
+          uv run --frozen pyi-archive_viewer -l dist/42-pacman | grep -q "resources/fonts/ArcadeClassic.ttf"
+          uv run --frozen pyi-archive_viewer -l dist/42-pacman | grep -q "resources/pacman/E-1.svg"
+
+      - name: Smoke-test Linux build
+        if: runner.os == 'Linux'
+        run: |
+          mkdir -p "$RUNNER_TEMP/pacman-data"
+          set +e
+          XDG_DATA_HOME="$RUNNER_TEMP/pacman-data" \
+            SDL_VIDEODRIVER=dummy \
+            SDL_AUDIODRIVER=dummy \
+            timeout 5 ./dist/42-pacman
+          code=$?
+          if [ "$code" -ne 0 ] && [ "$code" -ne 124 ]; then
+            exit "$code"
+          fi
+
+      - name: Create macOS disk image
+        if: runner.os == 'macOS'
+        run: |
+          hdiutil create \
+            -volname "42 Pac-Man" \
+            -srcfolder dist/42-pacman.app \
+            -ov \
+            -format UDZO \
+            42-pacman-macos.dmg
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.path }}
+          if-no-files-found: error

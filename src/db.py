@@ -1,6 +1,9 @@
 """Database manager."""
 
+import os
 import sqlite3 as sq
+import sys
+from pathlib import Path
 
 from .models import Config, sanitize_name
 
@@ -77,9 +80,43 @@ class Database:
             return
 
 
+def _is_frozen() -> bool:
+    """Return whether the game runs from a PyInstaller bundle."""
+    return bool(getattr(sys, "frozen", False))
+
+
+def _user_data_dir() -> Path:
+    """Return the per-user directory used by packaged builds."""
+    app_name: str = "42-pacman"
+    if sys.platform == "win32":
+        base: str | None = os.environ.get("APPDATA")
+        if base is not None:
+            return Path(base) / app_name
+        return Path.home() / "AppData" / "Roaming" / app_name
+    if sys.platform == "darwin":
+        return Path.home() / "Library" / "Application Support" / app_name
+    base = os.environ.get("XDG_DATA_HOME")
+    if base is not None:
+        return Path(base) / app_name
+    return Path.home() / ".local" / "share" / app_name
+
+
+def _database_path(cfg: Config) -> Path:
+    """Resolve the highscore path for source runs and packaged builds."""
+    configured: Path = Path(cfg.highscore_db)
+    if not _is_frozen() or configured.is_absolute():
+        return configured
+    return _user_data_dir() / configured.name
+
+
 def db_init(cfg: Config) -> Database:
-    """Helper for initializing database."""
+    """Open the highscore database, disabling it cleanly on failure."""
     db: Database = Database()
-    db.connect_db(cfg.highscore_db)
-    db.setup_db()
+    try:
+        path: Path = _database_path(cfg)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        db.connect_db(str(path))
+        db.setup_db()
+    except (OSError, sq.Error) as exc:
+        print(f"Could not open highscore database: {exc}")
     return db

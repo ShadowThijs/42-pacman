@@ -9,6 +9,7 @@ from pygame import font
 import pygame as pg
 
 from src.models import Colors
+from src.sprites import resource_dir
 
 SPACE_GAP: int = 3
 
@@ -20,6 +21,15 @@ def expand_spaces(text: str) -> str:
 
 def _load_font(size: int) -> font.Font:
     """Load the arcade font, falling back to a bundled/system mono font."""
+    bundled: pg.font.Font | None = None
+    bundled_path = resource_dir() / "fonts" / "ArcadeClassic.ttf"
+    if bundled_path.is_file():
+        try:
+            bundled = font.Font(str(bundled_path), size)
+        except (OSError, pg.error):
+            bundled = None
+    if bundled is not None:
+        return bundled
     for name in ("ArcadeClassic", "ByteBounce", "dejavusansmono"):
         path: str | None = font.match_font(name)
         if path is not None:

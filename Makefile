@@ -5,7 +5,7 @@ DEBUG = --with ipdb -m pdb -c continue
 MODULE = $(PM) run python -m
 
 ##@ Development
-.PHONY: install lint lint-strict test debug
+.PHONY: install lint lint-strict test debug package
 
 install: ## Install dependencies
 	@$(PM) sync
@@ -31,10 +31,13 @@ debug: ## Debug the pacman game with the python debugger
 	@$(PM) run $(DEBUG) $(MAIN)
 
 ##@ Running
-.PHONY: run
+.PHONY: run package
 
 run: ## Run pacman game
 	@$(PM) run $(MAIN)
+
+package: ## Build a one-file executable with PyInstaller
+	@$(PM) run pyinstaller --clean --noconfirm 42-pacman.spec
 
 ##@ help
 .PHONY: help
