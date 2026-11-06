@@ -156,11 +156,11 @@ The configuration file is JSON with comments. Lines and blocks starting
 with `#`, `//` or `/* ... */` are ignored. Comment markers inside JSON
 strings are preserved.
 
-The configuration structure is intentionally flat. Every key is
-optional. Missing keys use the default, wrong types use the default,
-and numeric values outside the safe range are clamped. Unknown keys are
-reported and ignored. Every adjustment prints a clear message and the
-game keeps running.
+The configuration is a flat JSON object. Every key is optional. Missing
+keys use the default, wrong types use the default, and numeric values
+outside the safe range are clamped. Unknown keys are reported and
+ignored. Every adjustment prints a clear message and the game keeps
+running.
 
 | Key | Type | Default | Safe range | Meaning |
 | --- | --- | --- | --- | --- |
@@ -176,6 +176,10 @@ game keeps running.
 | `seed` | integer | `42` | `1` to `2147483647` | Fixed seed for the first level of every new game. Later levels use fresh random seeds. |
 | `level_max_time` | integer | `300` | `1` to `3600` | Time limit per level in seconds. |
 | `max_levels` | integer | `10` | `1` to `100` | Number of levels in a full game. The default game has ten. |
+
+The default level time is five minutes. Shorter limits made a full maze
+too tight at the game's movement speed, even with the speed and
+invincibility cheats.
 
 Example:
 
@@ -402,21 +406,20 @@ The suite currently contains 38 tests, all passing. `make lint` and
 
 ## Project Management
 
-The project was managed by two students with a shared task board and
-weekly checkpoints. The dedicated directory `project_management/`
-contains the full evidence:
+We managed the project with a shared task list and short check-ins
+between work sessions. The dedicated directory `project_management/`
+contains the notes and retrospective evidence:
 
 - `README.md`: a one-minute tour and document index.
-- `timeline.md`: planned and actual phases, with the Gantt-style view.
-- `project_analysis.md`: scope, technical choices and trade-offs.
-- `risk_analysis.md`: risk register and mitigation status.
-- `team_organization.md`: roles, decision process, issue handling and
-  the contribution table.
-- `progress_tracking.md`: progress against the plan and git history.
-- `acceptance_test_plan.md`: requirement-to-test mapping and the bug
+- `timeline.md`: actual phases and the Gantt-style view.
+- `project_analysis.md`: design notes and trade-offs.
+- `risk_analysis.md`: what we worried about and what we did.
+- `team_organization.md`: who did what and how we worked.
+- `progress_tracking.md`: what was finished and what is left.
+- `acceptance_test_plan.md`: automated and manual tests, plus the bug
   log.
-- `blockers.md`: blocking points, conflicts and how they were resolved.
-- `deployment.md`: packaging and itch.io upload checklist.
+- `blockers.md`: the problems that slowed us down.
+- `deployment.md`: packaging and itch.io upload steps.
 
 ## Contributions
 
@@ -426,7 +429,7 @@ contains the full evidence:
 | Configuration parser, defaults and CLI | Lead | Testing and review |
 | A-Maze-Ing integration and maze rendering | Lead | Review |
 | Pac-Man movement, input buffer and wall collision | Lead | Testing and review |
-| Ghost class foundation and per-ghost targets | Integration and pathfinding refinement | Lead, original ghost classes and targets |
+| Ghost class foundation and per-ghost targets | Early base class and pathfinding refinement | Most of the ghost class and the four targets |
 | Frightened mode, super-pacgums and collision | Game-loop integration | Lead, frighten state and collision logic |
 | Ghost freeze, eaten-ghost eyes and respawn | Lead, state and freeze refactor | Co-development and gameplay validation |
 | State manager, screens, theme and HUD | Lead | Playtesting and review |
