@@ -175,8 +175,8 @@ running.
 | --- | --- | --- | --- | --- |
 | `highscore_db` | string | `database.db` | non-empty path | SQLite highscore file. Relative paths are resolved from the working directory when running from source. |
 | `level` | integer | `1` | `1` to `max_levels` | Starting level of a new game. Clamped to `max_levels`. |
-| `width` | integer | `20` | `5` to `50` | Maze width in cells. |
-| `height` | integer | `20` | `5` to `50` | Maze height in cells. |
+| `width` | integer | `20` | `5` to `35` | Maze width in cells. |
+| `height` | integer | `20` | `5` to `35` | Maze height in cells. |
 | `lives` | integer | `3` | `1` to `99` | Starting lives for a new game. |
 | `pacgum` | integer | `42` | `0` to `1000000` | Number of normal pellets per level. The effective count is capped by the number of reachable tiles. |
 | `pp_pacgum` | integer | `10` | `0` to `1000000` | Points per normal pellet. |
@@ -416,7 +416,7 @@ Run it with:
 make test
 ```
 
-The suite currently contains 38 tests, all passing. `make lint` and
+The suite currently contains 39 tests, all passing. `make lint` and
 `make lint-strict` also pass with no flake8 or mypy errors.
 
 ## Project Management

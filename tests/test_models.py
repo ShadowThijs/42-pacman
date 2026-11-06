@@ -99,7 +99,7 @@ def test_config_invalid_types_and_values_are_safe(tmp_path: Path) -> None:
     )
     cfg = Config(str(path))
     assert cfg.lives == 3
-    assert cfg.width == 50
+    assert cfg.width == 35
     assert cfg.height == 5
     assert cfg.pacgum == 0
     assert cfg.pp_ghost == 0

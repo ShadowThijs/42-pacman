@@ -78,6 +78,17 @@ def test_start_uses_configured_level(tmp_path: Path) -> None:
         _teardown(game)
 
 
+def test_clamped_maximum_maze_size_starts(tmp_path: Path) -> None:
+    """Oversized width and height clamp to a maze the generator can build."""
+    game, _ = _start(tmp_path, width=999, height=999)
+    try:
+        assert len(game.current_maze.maze) == 35
+        assert len(game.current_maze.maze[0]) == 35
+        assert game.level_error is None
+    finally:
+        _teardown(game)
+
+
 def test_first_level_is_deterministic(tmp_path: Path) -> None:
     """The fixed seed produces the same maze and pellets every session."""
     first, _ = _start(tmp_path)

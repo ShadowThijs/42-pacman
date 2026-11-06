@@ -14,7 +14,7 @@ make test
 
 The suite is headless. `tests/conftest.py` sets SDL's dummy video and
 audio drivers, and each test uses temporary config and database files.
-At the end of the project all 38 tests pass.
+At the end of the project all 39 tests pass.
 
 | Area | Tests | What they cover |
 | --- | --- | --- |
@@ -22,7 +22,7 @@ At the end of the project all 38 tests pass.
 | Config values | `test_config_defaults_when_file_is_missing`, `test_config_uses_configured_level`, `test_config_level_is_clamped_to_max_levels`, `test_config_invalid_types_and_values_are_safe`, `test_config_unknown_keys_are_ignored`, `test_config_invalid_json_uses_defaults`, `test_config_root_must_be_an_object` | Defaults, the starting level, clamping, wrong types, unknown keys and broken JSON |
 | Names | `test_sanitize_name_uppercases_and_filters`, `test_sanitize_name_truncates_to_ten_characters` | Uppercasing, invalid characters and the ten-character limit |
 | Database | `test_database_persists_scores_across_connections`, `test_database_keeps_only_top_ten`, `test_database_sanitizes_names_and_scores`, `test_database_handles_corrupt_file`, `test_db_init_creates_configured_database`, `test_db_init_handles_unwritable_path` | Persistence, top ten, sanitising, corruption and bad paths |
-| Level start | `test_start_uses_configured_level`, `test_first_level_is_deterministic`, `test_initial_level_contents` | Starting level, fixed seed, pellets, power pellets, ghosts and lives |
+| Level start | `test_start_uses_configured_level`, `test_clamped_maximum_maze_size_starts`, `test_first_level_is_deterministic`, `test_initial_level_contents` | Starting level, maximum maze size, fixed seed, pellets, power pellets, ghosts and lives |
 | Movement | `test_player_cannot_cross_walls`, `test_player_moves_through_open_corridor` | Wall collision and normal corridor movement |
 | Pellets | `test_eating_pacgum_increases_score`, `test_eating_supergum_increases_score` | Pellet scoring |
 | Ghosts | `test_frightened_ghost_becomes_edible`, `test_frightened_ghost_flees_to_far_corner`, `test_eating_frightened_ghost_scores`, `test_eaten_ghost_respawns` | Frightened state, retreat target, eating and respawn |
@@ -77,7 +77,7 @@ Use this after `make run` or with the packaged build.
 | Pass invalid JSON | Warning and defaults, game starts |
 | Pass a JSON array | Warning and defaults, game starts |
 | Set `lives` to `true` | Warning, default 3 |
-| Set `width` to 999 | Warning, clamped to 50 |
+| Set `width` to 999 | Warning, clamped to 35 |
 | Set `height` to -4 | Warning, clamped to 5 |
 | Set `pacgum` to -1 | Warning, clamped to 0 |
 | Set `level` to 99 | Warning, clamped to `max_levels` |
