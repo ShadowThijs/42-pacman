@@ -14,7 +14,7 @@ make test
 
 The suite is headless. `tests/conftest.py` sets SDL's dummy video and
 audio drivers, and each test uses temporary config and database files.
-At the end of the project all 39 tests pass.
+At the end of the project all 40 tests pass.
 
 | Area | Tests | What they cover |
 | --- | --- | --- |
@@ -25,7 +25,7 @@ At the end of the project all 39 tests pass.
 | Level start | `test_start_uses_configured_level`, `test_clamped_maximum_maze_size_starts`, `test_first_level_is_deterministic`, `test_initial_level_contents` | Starting level, maximum maze size, fixed seed, pellets, power pellets, ghosts and lives |
 | Movement | `test_player_cannot_cross_walls`, `test_player_moves_through_open_corridor` | Wall collision and normal corridor movement |
 | Pellets | `test_eating_pacgum_increases_score`, `test_eating_supergum_increases_score` | Pellet scoring |
-| Ghosts | `test_frightened_ghost_becomes_edible`, `test_frightened_ghost_flees_to_far_corner`, `test_eating_frightened_ghost_scores`, `test_eaten_ghost_respawns` | Frightened state, retreat target, eating and respawn |
+| Ghosts | `test_frightened_ghost_becomes_edible`, `test_frightened_ghost_flees_to_far_corner`, `test_eating_frightened_ghost_scores`, `test_ghost_collision_costs_life_and_respawns`, `test_eaten_ghost_respawns` | Frightened state, retreat target, eating, life loss and respawn |
 | Progression | `test_level_advance_keeps_score_and_lives`, `test_victory_after_final_level` | Level advance, score and lives carried, victory |
 | Timer | `test_timer_expiry_costs_a_life`, `test_timer_expiry_on_last_life_ends_game`, `test_invincible_cheat_prevents_timer_death` | Life loss, game over and invincibility |
 | Cheats | `test_cheat_keys_enable_and_apply`, `test_cheats_class_toggles` | Hotkeys, extra lives and cheat toggles |

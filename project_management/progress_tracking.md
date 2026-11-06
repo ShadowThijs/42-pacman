@@ -13,7 +13,7 @@
 | Game flow | Done | Menu, game, pause, death, game over, victory, leaderboard |
 | Highscores | Done | SQLite, top ten, name rules and persistence |
 | Cheats | Done | Invincible, speed, freeze, extra lives and level skip |
-| Testing | Done | 39 headless tests plus a manual play script |
+| Testing | Done | 40 headless tests plus a manual play script |
 | Packaging | Done | PyInstaller spec, CI matrix and local smoke test |
 | Documentation | Done | README and this folder |
 | itch.io upload | Pending | Needs the team account |
@@ -64,7 +64,7 @@ work with asylla on the ghost code.
 | --- | --- |
 | `make lint` | Pass |
 | `make lint-strict` | Pass |
-| `make test` | 39 tests pass |
+| `make test` | 40 tests pass |
 | Headless play and screen render | Pass |
 | Invalid config battery | Pass, no traceback |
 | Packaged executable smoke test | Pass |

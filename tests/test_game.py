@@ -243,6 +243,29 @@ def test_eating_frightened_ghost_scores(session: tuple[Game, App]) -> None:
     assert ghost.state == GhostState.DEAD_PATHING
 
 
+def test_ghost_collision_costs_life_and_respawns(
+    session: tuple[Game, App],
+) -> None:
+    """A normal ghost takes a life and Pac-Man returns to the centre."""
+    game, _ = session
+    game.first_input = True
+    game.release_ghosts(10.0)
+    ghost = game.ghosts[0]
+    ghost.state = GhostState.CHASE
+    ghost.resume_state = GhostState.CHASE
+    ghost.timer = 0.0
+    ghost.row = game.pac.row
+    ghost.col = game.pac.col
+    ghost.progress = 0.0
+    ghost.direction = None
+    ghost._sync_geometry()
+    lives: int = game.pac.lives
+    game.update(0.016)
+    assert game.pac.lives == lives - 1
+    assert (game.pac.row, game.pac.col) == game.player_spawn
+    assert not game.game_over
+
+
 def test_eaten_ghost_respawns(session: tuple[Game, App]) -> None:
     """Eyes reach their corner, wait, and return to the chase."""
     game, _ = session

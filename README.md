@@ -416,7 +416,7 @@ Run it with:
 make test
 ```
 
-The suite currently contains 39 tests, all passing. `make lint` and
+The suite currently contains 40 tests, all passing. `make lint` and
 `make lint-strict` also pass with no flake8 or mypy errors.
 
 ## Project Management
