@@ -94,6 +94,7 @@ jobs:
       - name: Create macOS disk image
         if: runner.os == 'macOS'
         run: |
+          rm -rf dist/dmg
           mkdir -p dist/dmg
           cp -R dist/42-pacman.app dist/dmg/
           cp config.json README.md dist/dmg/
