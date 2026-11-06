@@ -1,7 +1,7 @@
 [project]
 name = "42-pac-man"
 version = "0.1.0"
-description = "Add your description here"
+description = "A complete Pac-Man game built with pygame for the 42 curriculum"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
