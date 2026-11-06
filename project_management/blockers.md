@@ -1,109 +1,74 @@
-# Blocking points and conflicts
+# Blockers
 
-This document records the points that stopped or slowed the project and
-how they were resolved. It is intentionally specific.
+These are the problems that actually slowed the project down. We did not
+have any personal conflict. The main issue was scheduling: the two of us
+had different course loads, so the ghost phase slipped from August to
+October.
 
-## B1. Maze generator package was not available at the start
+## Maze package arrived later than expected
 
-- **Impact**: the level loader and rendering could not be finished.
-- **Resolution**: the team built the configuration loader and the state
-  skeleton first, then integrated the 2.0.2 wheel when it was
-  available. The wheel is now committed in `maze/`.
-- **Lesson**: isolate the generator behind a small call site so the rest
-  of the game can be developed with a placeholder.
+We wanted to start with the loader, but the A-Maze-Ing package was not
+available at the beginning. We built the config, state skeleton and
+rendering first, then plugged in the 2.0.2 wheel when we had it. The
+wheel is now in `maze/`, so a fresh clone can install it.
 
-## B2. Maze bitmask orientation
+## Row and column confusion in the maze
 
-- **Impact**: early collision and pathfinding code confused rows and
-  columns because the generator publishes wall bits but not coordinates.
-- **Resolution**: the project standardised on `maze[row][col]` and
-  documented that direction vectors are `(column_delta, row_delta)`.
-  `models.can_move`, `PacMan` and `Ghost` all use the same convention.
-  The reachability test caught one remaining swapped tuple.
-- **Status**: resolved and covered by movement tests.
+The generator gives wall bitmasks but not coordinates. Early collision
+code mixed up `(row, col)` and `(x, y)`, which made the reachability
+check find only a few tiles. We settled on `maze[row][col]` and
+`VECTORS = (column_delta, row_delta)` and fixed the swapped tuple. The
+movement tests now protect this.
 
-## B3. Ghost interaction was merged late
+## Ghost work was split over two periods
 
-- **Impact**: the ghosts could chase, but collision, frightened mode and
-  eaten-ghost behaviour were not connected to the game loop for a long
-  time.
-- **Resolution**: asylla implemented the ghost classes, targets and
-  frighten state. The team then integrated the collision loop and the
-  release schedule. Some of this integration was pair-programmed and is
-  recorded in commits under tlogtenb's account.
-- **Status**: resolved, covered by ghost tests and manual play.
+asylla wrote the ghost classes and targets in August and October, but
+the collision loop and the game integration were only finished later.
+The fix was to give the ghost files to asylla and keep the game loop
+changes small. We pair-programmed the collision, fright and freeze
+parts.
 
-## B4. Freeze changed the ghost identity
+## Freeze changed what a ghost was
 
-- **Impact**: freezing a frightened ghost could make it dangerous, and
-  freezing an eaten ghost could make it edible again.
-- **Resolution**: every ghost keeps a `resume_state`. `freeze` stores the
-  state beneath the freeze, and `unfreeze` restores it. A frightened
-  ghost stays frightened and keeps its timer.
-- **Status**: resolved and recorded in `risk_analysis.md` as R11.
+Freezing a frightened ghost could make it dangerous again, and freezing
+an eaten ghost could make it edible. We added a `resume_state` to every
+ghost. Freeze stores the state underneath, and unfreeze restores it.
 
-## B5. Death animation and respawn timing
+## Death and respawn did not line up
 
-- **Impact**: respawning Pac-Man immediately hid the death animation, or
-  left input disabled after the animation.
-- **Resolution**: gameplay now detects the life loss, freezes the last
-  frame, pushes `DyingState`, and calls `reset_death` only after the
-  animation. Ghosts wait for the next input before their release
-  schedule resumes.
-- **Status**: resolved.
+Resurrecting Pac-Man immediately hid the death animation. Waiting for
+the animation while the game kept running also caused problems. The
+final flow detects the life loss, freezes the last frame, runs
+`DyingState` on top, and only then respawns and waits for input.
 
-## B6. Score flow did not match the required game loop
+## Score flow did not match the game loop
 
-- **Impact**: the name prompt opened the leaderboard instead of returning
-  to the main menu. The intended loop is
-  `Main Menu > start game > Win or Lose > Enter name > Back to Main Menu`.
-- **Resolution**: `App.submit_score` and `App.skip_score` now reset the
-  stack to the main menu. The main menu displays the top five and a
-  `SCORE SAVED` notice, so the player still sees the result immediately.
-- **Status**: resolved and covered by `test_submitting_score_returns_to_main_menu`.
+Saving a score opened the leaderboard instead of returning to the main
+menu. We changed both save and skip to reset the stack to the main menu,
+and put the top five scores on the menu so the result is still visible.
 
-## B7. Configuration value `level` was loaded but unused
+## `level` was loaded but ignored
 
-- **Impact**: the game always started at level 1, which is exactly the
-  defect reported by the team. It also made the configuration look
-  correct while silently ignoring a documented value.
-- **Resolution**: `Config.level` is now the starting level, clamped to
-  `max_levels`. The first generated maze still uses the fixed seed for
-  the session. The HUD shows the configured level and the final level.
-- **Status**: resolved and covered by `test_start_uses_configured_level`.
+This was one of the bugs we already knew about. `Config` read `level`,
+but `start_new_game` always set the game to 1. It now uses the
+configured level, clamped to `max_levels`, and a test checks it.
 
-## B8. Lint failures blocked CI
+## CI lint failed
 
-- **Impact**: the macOS and Linux CI jobs failed on a line-length error,
-  so the build matrix could not be trusted.
-- **Resolution**: the team added `.flake8`, fixed the long lines and
-  example annotations, and made `make lint` run `flake8 .` plus the exact
-  mypy flags. Both `make lint` and `make lint-strict` now pass.
-- **Status**: resolved.
+The macOS and Linux CI jobs failed on a line-length error in
+`src/game.py`. We added a `.flake8` config, fixed the line and the
+examples, and made CI run `flake8 .` and the same mypy flags as
+`make lint`.
 
-## B9. Packaging missed documents
+## Packaging missed the config and docs
 
-- **Impact**: the first package was only the executable, with no
-  in-package configuration or instructions.
-- **Resolution**: `make package` copies `config.json` and `README.md`
-  into `dist/`, the spec bundles the resources, and the game has an
-  in-game Instructions screen. CI also verifies the bundled resources.
-- **Status**: resolved.
+The first package was only the executable. We added `config.json` and
+the README to the spec and to the copy step in `make package`, and the
+game already has an instructions screen. The Linux smoke test now runs
+with the packaged config.
 
-## B10. Itch.io publication is an external step
+## The itch.io upload needs an account
 
-- **Impact**: the repository can prove that the package is
-  reproducible, but publishing to a gaming platform needs an account
-  and a manual upload.
-- **Resolution**: the team prepared the artifacts and a full checklist
-  in `deployment.md`. The upload is the only remaining external action.
-- **Status**: open by design, to be completed by the team.
-
-## Conflicts
-
-No personal conflict blocked the project. The main coordination
-conflict was scheduling: the two students had different course loads,
-which is why the ghost phase moved from August to October. The team
-resolved it by splitting ownership by file and feature, by keeping the
-interfaces small, and by doing a joint integration session before the
-final packaging and compliance passes.
+The package is built and tested, but publishing needs the team's
+itch.io account. We wrote the upload steps in `deployment.md`. This is
+the only remaining external action.

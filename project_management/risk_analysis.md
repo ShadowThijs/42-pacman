@@ -1,53 +1,37 @@
 # Risk analysis
 
-The register is reviewed at each weekly checkpoint. Probability and
-impact are rated low, medium or high. Every risk has an owner and a
-mitigation. The status column is the state at the final compliance pass.
+We kept a short risk list and updated it when something actually became
+a problem. The table is written from the perspective of the finished
+project: it lists the risks we worried about, what we did, and how it
+ended.
 
-| ID | Risk | Probability | Impact | Mitigation | Owner | Status |
-| --- | --- | --- | --- | --- | --- | --- |
-| R1 | Maze generator has a different interface or fails at runtime | Medium | High | Pin the 2.0.2 wheel in `maze/`, call only public API, catch generator exceptions and return to the menu, document the interface. | tlogtenb | Mitigated |
-| R2 | Maze generator is reinstalled during peer review and changes behaviour | Medium | High | Keep the exact wheel in the repository and list it in `pyproject.toml`. The loader does not depend on private attributes. | tlogtenb | Mitigated |
-| R3 | Malformed configuration crashes the game during review | High | High | Typed defaults, range clamping, comment stripping, unknown-key handling, top-level exception handler, automated config tests. | tlogtenb | Mitigated |
-| R4 | A config value is silently ignored, as happened with `level` | High | High | Every documented key is read in `Config` and covered by a test. `level` is now the starting level. | tlogtenb | Fixed |
-| R5 | Python traceback reaches the user | Medium | High | `main()` catches all exceptions, config and database code catch expected errors, generator failures are handled. | tlogtenb | Mitigated |
-| R6 | Missing or corrupt highscore database | Medium | Medium | SQLite errors are caught, the connection is disabled, the game continues with an empty leaderboard, tests cover a corrupt file. | tlogtenb | Mitigated |
-| R7 | Highscore name contains invalid characters or is too long | Medium | Low | Input filter plus database sanitisation plus truncation to ten characters. | tlogtenb | Mitigated |
-| R8 | Score decreases or overflows | Low | Medium | Points are clamped to non-negative values, score is only incremented, `int` is unbounded in Python. | tlogtenb | Mitigated |
-| R9 | Pac-Man or a ghost crosses a wall | Medium | High | Shared `can_move` rule, movement resolved between tile centres, tests for blocked and open directions. | tlogtenb | Mitigated |
-| R10 | Pellet is placed on an unreachable tile, making a level impossible | Medium | High | Pellets are sampled only from the reachable set computed from the player spawn. | tlogtenb | Mitigated |
-| R11 | Ghost freeze turns a frightened or eaten ghost into a dangerous one | Medium | High | Ghosts keep a `resume_state`, and tests cover the freeze transition. | asylla and tlogtenb | Mitigated |
-| R12 | Death animation and respawn state disagree | Medium | Medium | The last frame is frozen, the animation runs in its own state, and respawn waits for the next input. | tlogtenb | Mitigated |
-| R13 | Timer expires during a menu or pause | Low | Medium | The timer is advanced only by the gameplay state, and pauses stop updates. | tlogtenb | Mitigated |
-| R14 | Packaging misses resources or the config file | Medium | High | The spec bundles `resources`, `make package` copies config and README, CI verifies the archive and runs a smoke test. | tlogtenb | Mitigated |
-| R15 | CI fails on a different operating system | Medium | Medium | Build matrix on Linux, Windows and macOS, plus archive inspection and a headless smoke test. | tlogtenb | Mitigated |
-| R16 | flake8 or mypy fails during review | High | High | `.flake8` configuration, exact `make lint` commands, strict typing, CI lint step and a clean local run. | both | Mitigated |
-| R17 | Scope creep delays the mandatory features | High | High | Mandatory features first, optional audio and online scores explicitly out of scope. | both | Mitigated |
-| R18 | Merge conflicts between the two students | Medium | Medium | Feature ownership, small commits and integration on the shared branch. | both | Mitigated |
-| R19 | One student cannot explain the other's code | Medium | High | Pair reviews, contribution table, shared acceptance tests and a walkthrough of each module. | both | Mitigated |
-| R20 | AI-generated code is not understood | Medium | High | Every change is reviewed, run and tested. AI is used for suggestions and repetitive work, not as a replacement for understanding. | both | Controlled |
-| R21 | The itch.io upload is not ready before release | Medium | High | Build artifacts are reproducible with `make package`, the upload checklist is written, and the team performs the upload. | both | Open, manual step |
-| R22 | Frame rate drops on a slower machine | Low | Medium | Cached maze layer, cached sprites, capped delta time, BFS limited to a 20 by 20 maze. | tlogtenb | Mitigated |
-| R23 | Window resize breaks the layout | Medium | Low | Logical scaled surface, layout recomputed from the current screen size. | tlogtenb | Mitigated |
-| R24 | User closes the window during a game | Low | Low | QUIT is handled, the main loop stops, the database and pygame are closed. | tlogtenb | Mitigated |
+| Risk | How likely it felt | What we did | Status |
+| --- | --- | --- | --- |
+| The maze package was not available when we started the loader | High | Built the config, state and rendering skeleton first, then used the 2.0.2 wheel once it was available | Closed |
+| A reinstalled maze package could behave differently | Medium | Pinned the wheel in `maze/`, used only the public `MazeGenerator` API and the public `maze` property | Closed |
+| A bad config file could crash the game | High | Typed defaults, range clamping, comment stripping, unknown-key handling and a top-level exception handler | Closed |
+| A config value could be read but never used | High | Each key has a test, and the `level` bug was found and fixed in the final pass | Closed |
+| A traceback could appear during review | Medium | Caught expected errors in config, database and maze code, and wrapped the entry point | Closed |
+| A missing or corrupt highscore file could stop the game | Medium | Disabled the database cleanly and continued with an empty leaderboard | Closed |
+| A name could be too long or contain invalid characters | Medium | Filtered input in the screen and sanitised again in the database | Closed |
+| Pac-Man or a ghost could cross a wall | Medium | Shared `can_move` rule, movement between tile centres and wall tests | Closed |
+| A pellet could be placed somewhere unreachable | Medium | Sample pellets only from the reachable set computed from the player spawn | Closed |
+| Freezing a ghost could change what it really is | Medium | Kept a `resume_state` and restored it on unfreeze | Closed |
+| Death and respawn could get out of sync | Medium | Froze the last frame, played the death animation in its own state and resumed only after it | Closed |
+| CI could fail on a different operating system | Medium | Build matrix on Linux, Windows and macOS, plus a headless smoke test | Closed |
+| flake8 or mypy could fail during review | High | Added `.flake8`, fixed the long lines and made CI run the same commands as `make lint` | Closed |
+| The package could miss resources or the config file | Medium | Bundled `resources`, copied `config.json` and the README, checked the archive in CI | Closed |
+| We could run out of time on the ghost work | High | Split ghost ownership, integrated in October and tested on the real maze | Closed, but late |
+| AI suggestions could end up in code we cannot explain | Medium | Read, ran and tested every suggestion, and rewrote several of them | Controlled |
+| The itch.io upload needs the team account | High | Prepared the package and wrote the upload checklist | Open, external step |
 
-## Risk response process
+## What we would watch next time
 
-1. A new risk is added to the register when it is identified in a
-   checkpoint or a review.
-2. The owner proposes a mitigation and, when possible, an automated
-   check.
-3. The mitigation is verified in the next checkpoint.
-4. A risk is closed only when the evidence exists in the repository,
-   for example a test name or a CI step.
-
-## Residual risks
-
-- The itch.io page is an external artifact. The repository can prove
-  that the package is reproducible, but the upload itself must be done
-  by the team.
-- A future version of the maze generator could change its public
-  interface. The pinned wheel and the adapter-style loader reduce this
-  risk, but they cannot eliminate it.
-- No automated test can prove that the game feels good. Manual play
-  sessions remain part of the acceptance plan.
+- Start the ghost integration earlier, even with a simple maze, so the
+  collision and state problems appear before the last month.
+- Add the project management folder from the first week. Reconstructing
+  the timeline at the end is more work than writing it as we go.
+- Run `make lint` and `make test` in CI from the first packaging commit.
+  We only found the CI line-length failure late.
+- Keep the configuration defaults and the example config in sync. The
+  level time changed in two places and that caused confusion.

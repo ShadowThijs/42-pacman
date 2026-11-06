@@ -1,90 +1,86 @@
 # Timeline
 
-The project ran from 2026-06-19 to 2026-11-06. The plan was reviewed at
-the end of each work week and adjusted. The dates below are reconstructed
-from the git history and the shared task notes. They are deliberately
-honest about the long gaps between phases, which were caused by other
-coursework and by waiting for the maze generator package.
+The project ran from 19 June to 6 November 2026. We did not keep a formal
+Gantt while working. This timeline is reconstructed from the git history
+and from the notes we kept in our shared task list. It shows when each
+part actually moved, including the long gap in August and September.
 
-## Phase plan and actual dates
+## Actual phases
 
-| Phase | Planned window | Actual window | Main outcome |
-| --- | --- | --- | --- |
-| P0. Repository and environment | 2026-06-19 to 2026-06-26 | 2026-06-19 | Python project, git repository, dependency setup, initial README |
-| P1. Configuration and maze loading | 2026-06-26 to 2026-07-10 | 2026-07-22 to 2026-07-24 | Comment-aware JSON loader, safe defaults, first `MazeGenerator` integration |
-| P2. Rendering and pellets | 2026-07-10 to 2026-07-24 | 2026-07-24 to 2026-07-26 | Wall bitmask rendering, pellet drawing, first score tracking |
-| P3. Actors and movement | 2026-07-24 to 2026-08-14 | 2026-07-28 to 2026-08-20 | Pac-Man movement, buffered input, wall collision, ghost base classes, sprites |
-| P4. Ghost behaviour | 2026-08-14 to 2026-09-04 | 2026-10-18 to 2026-10-31 | Per-ghost targets, collision loop, super-pacgums, frightened state |
-| P5. Screens and game flow | 2026-09-04 to 2026-09-25 | 2026-10-21 to 2026-10-28 | State stack, main menu, game screen, death flow, highscore entry |
-| P6. Cheats and polish | 2026-09-25 to 2026-10-16 | 2026-10-29 to 2026-11-03 | Konami unlock, invincibility, speed, freeze, extra lives, skip level |
-| P7. Progression and timer | 2026-10-16 to 2026-10-30 | 2026-11-02 to 2026-11-03 | Level timer, corner power pellets, victory screen, HUD fixes |
-| P8. Packaging and CI | 2026-10-30 to 2026-11-06 | 2026-11-03 to 2026-11-06 | PyInstaller recipe, multi-platform workflow, release artifacts |
-| P9. Final compliance | 2026-11-03 to 2026-11-06 | 2026-11-06 | Config level fix, instructions screen, docs, tests, final lint |
+| Dates | Phase | What happened |
+| --- | --- | --- |
+| 19 Jun | Setup | Repository, Python environment, first README and dependency setup |
+| 22 Jul | Configuration | Comment-aware JSON loader and the first config tests |
+| 24 Jul | Maze loading | First `MazeGenerator` integration and a mypy cleanup |
+| 26 Jul | Rendering | Wall bitmask rendering, pellet drawing and the first score tracking |
+| 28 Jul | Actor skeleton | First Pac-Man and ghost classes |
+| 4 Aug | Sprites | Pac-Man and ghost sprite sets, animated Pac-Man |
+| 5 Aug | Movement | Wall collision, cell pinning, input buffering, pellet eating, ghost subclasses |
+| 20 Aug | Ghost foundation | Position class, ghost base class and a sample interaction |
+| 18 Oct | Ghost classes | asylla's ghost implementation, targets and linter fixes |
+| 21 to 28 Oct | Screens and flow | State manager, theme, main menu, game screen, death and score flow |
+| 29 to 31 Oct | Pellets and fright | Super-pacgums, frighten state, fright timer, collision fixes, first cheats |
+| 2 Nov | Freeze and performance | Frozen ghost identity, render caching, frame clearing |
+| 3 Nov | Timer and victory | Corner power pellets, level timer, victory screen, packaging workflow |
+| 6 Nov | Final pass | Config `level` fix, instructions screen, tests, README and project management |
 
-## Gantt view
+## Gantt view of the actual work
 
 ```mermaid
 gantt
-    title Pac-Man project phases
+    title Pac-Man actual work
     dateFormat  YYYY-MM-DD
     axisFormat  %m-%d
-    section Plan
-    P0 Repository            :p0, 2026-06-19, 7d
-    P1 Config and maze       :p1, 2026-06-26, 14d
-    P2 Rendering             :p2, 2026-07-10, 14d
-    P3 Actors and movement   :p3, 2026-07-24, 21d
-    P4 Ghost behaviour       :p4, 2026-08-14, 21d
-    P5 Screens and flow      :p5, 2026-09-04, 21d
-    P6 Cheats and polish     :p6, 2026-09-25, 21d
-    P7 Progression and timer :p7, 2026-10-16, 14d
-    P8 Packaging and CI      :p8, 2026-10-30, 7d
-    P9 Final compliance      :p9, 2026-11-03, 3d
-    section Actual
-    P0 Repository            :a0, 2026-06-19, 2d
-    P1 Config and maze       :a1, 2026-07-22, 3d
-    P2 Rendering             :a2, 2026-07-24, 3d
-    P3 Actors and movement   :a3, 2026-07-28, 24d
-    P4 Ghost behaviour       :a4, 2026-10-18, 14d
-    P5 Screens and flow      :a5, 2026-10-21, 8d
-    P6 Cheats and polish     :a6, 2026-10-29, 6d
-    P7 Progression and timer :a7, 2026-11-02, 2d
-    P8 Packaging and CI      :a8, 2026-11-03, 2d
-    P9 Final compliance      :a9, 2026-11-06, 1d
+    section Core
+    Setup                    :2026-06-19, 1d
+    Config and maze          :2026-07-22, 3d
+    Rendering and pellets    :2026-07-26, 2d
+    Movement and sprites     :2026-07-28, 9d
+    Ghost foundation         :2026-08-17, 4d
+    section Gameplay
+    Ghost classes            :2026-10-18, 3d
+    Screens and flow         :2026-10-21, 8d
+    Super pellets and fright :2026-10-29, 3d
+    Freeze and rendering     :2026-11-02, 2d
+    Timer and victory        :2026-11-03, 1d
+    section Release
+    Tests and final fixes    :2026-11-04, 3d
+    Documentation            :2026-11-05, 2d
 ```
+
+## How the plan changed
+
+The ghost classes were started in August, but the collision loop, fright
+state and eaten-ghost behaviour were only connected to the game in
+October. The main reasons were different course schedules and the fact
+that the maze integration had to be stable before ghost movement could
+be tested properly.
+
+Packaging came together once the game was playable. That was useful
+because it caught missing resources and a broken CI lint step before the
+final week.
+
+The last pass was mostly about things we had left for later: the config
+`level` value was still ignored, the main menu had no instructions
+screen, and the project management folder did not exist yet.
 
 ## Milestones
 
-| Milestone | Date | Evidence |
+| Milestone | Date | Commit or evidence |
 | --- | --- | --- |
-| Repository created | 2026-06-19 | Initial commit |
-| Config loader working | 2026-07-22 | `feat: config loading` |
-| First maze rendered | 2026-07-24 to 2026-07-26 | `feat: simple maze parsing`, `feat: better maze rendering + pacgums` |
-| Pac-Man moves and collides | 2026-08-05 | `feat: wall interaction, cell pinning, input buffering` |
-| Ghost subclasses created | 2026-08-05 to 2026-08-20 | Ghost class and subclass commits |
-| Ghost interaction integrated | 2026-10-26 | asylla's ghost spawn and collision commits |
-| Super-pacgums and fright | 2026-10-29 to 2026-10-31 | Supergum and frighten commits |
-| State stack and screens | 2026-10-21 to 2026-10-28 | State manager and arcade screens |
-| Cheat mode | 2026-10-31 to 2026-11-02 | Konami, invincible, freeze and speed commits |
-| Level timer and victory | 2026-11-03 | `feat: corner power pellets, level timer and victory screen` |
-| Packaging workflow | 2026-11-03 | CI workflow and spec commits |
-| Final compliance pass | 2026-11-06 | Config level, instructions, docs and tests |
+| Repository created | 19 Jun | Initial setup |
+| Config loader works | 22 Jul | `feat: config loading` |
+| First maze rendered | 24 to 26 Jul | Maze parsing and rendering commits |
+| Pac-Man moves and cannot cross walls | 5 Aug | Wall interaction and input buffering |
+| Ghost classes exist | 5 to 20 Aug | Ghost subclass and base-class commits |
+| Ghost interaction connected | 26 Oct | asylla's spawn and collision commits |
+| Super-pacgums and fright | 29 to 31 Oct | Supergum and frighten commits |
+| State stack and screens | 21 to 28 Oct | State manager and arcade screens |
+| Cheats work | 31 Oct to 2 Nov | Konami, invincible, speed and freeze commits |
+| Level timer and victory | 3 Nov | Corner power pellets, timer and victory screen |
+| Package builds | 3 Nov | PyInstaller spec and CI workflow |
+| Final cleanup | 6 Nov | Config level, instructions, tests and docs |
 
-## What changed from the plan
-
-- The ghost phase slipped because the A-Maze-Ing package had to
-  be integrated first, and because the two students had different course
-  schedules. The ghost foundation was started in August and the full
-  behaviour was finished in October.
-- The UI phase was brought forward once the state stack existed, because
-  end-of-game flow depends on the score and highscore screens.
-- Packaging was moved earlier than planned once the game was playable,
-  so that CI could catch missing resources before the final week.
-- The final compliance pass added the required Instructions screen,
-  project management documents, tests and the config `level` fix.
-
-## Time spent
-
-The project was developed in evenings and weekends, and the history
-contains more than 80 commits. The longest gaps are visible in
-`progress_tracking.md` and are explained there. The final day was
-reserved for compliance, documentation and verification.
+The repository has more than 80 commits. Most are under tlogtenb's
+account and 15 are under asylla's account. Some of the ghost commits
+under tlogtenb's account were pair-programming sessions with asylla.

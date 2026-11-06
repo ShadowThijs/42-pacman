@@ -1,138 +1,125 @@
 # Project analysis
 
-## Goal
+## What we wanted to build
 
-Build a complete, playable Pac-Man game in Python 3.10 or newer, using an
-external maze generator, a simple graphical library, a persistent
-highscore system, a polished UI, a cheat mode and a reproducible
-packaging pipeline.
+A complete Pac-Man game in Python, using the A-Maze-Ing package for the
+maze, pygame for the graphics, a persistent highscore file and a
+packaged desktop build. The game had to stay playable when the config
+file was wrong, and it had to be easy to demonstrate with cheats.
 
-## Scope
+We also wanted the code to be something we could explain line by line in
+review, not a black box built from copy-pasted snippets.
 
-### In scope
+## What we left out
 
-- Main menu, instructions, highscores, pause, game over and victory.
-- Ten levels by default with a per-level timer.
-- Pac-Man movement with buffered input and wall collision.
-- Four ghosts with distinct chase targets, frightened behaviour and
-  respawn.
-- Normal and super pellets with configurable scoring.
-- Persistent top-ten leaderboard.
-- Comment-aware JSON configuration with defaults and clamping.
-- Cheat mode for peer review.
-- PyInstaller package and multi-platform CI.
-- Project management documents and an acceptance test plan.
+- Sound and music.
+- Online highscores. The leaderboard is local.
+- Web or mobile builds.
+- Reimplementing the maze generator. The package is a dependency.
+- Extra game modes beyond the ten-level arcade run.
 
-### Out of scope
+## Main choices
 
-- Networked multiplayer.
-- Sound and music. The original arcade sounds are not reproduced.
-- Mobile and web builds.
-- Reimplementing the external maze generator.
-- Online leaderboards. Scores are local to the machine.
+### pygame
 
-## Constraints
+We used pygame because it works on Linux, Windows and macOS, it handles
+SVG sprites through SDL_image, and it is the library most people in the
+42 Python track already know. The alternative was MLX, which is C
+oriented and would have made the project less portable outside the
+school machines.
 
-- The maze generator is an external dependency and is used as-is.
-- The maze generator is configured with `perfect=False`.
-- Python 3.10 or newer and flake8 plus mypy must pass.
-- No Python traceback may reach the user.
-- The game must remain playable with a malformed configuration.
-- The package must be reproducible from the repository.
+### A state stack
 
-## Architecture decisions
+The game has a main menu, a playable screen, a pause overlay, a death
+animation, a game over screen, a victory screen and a leaderboard. We
+implemented these as states on a stack. The top state receives input and
+updates, and the whole stack is drawn from bottom to top. That is why
+the pause menu can dim the maze without mutating the game, and why the
+death animation can play over a frozen frame.
 
-| Decision | Alternatives considered | Why this was chosen | Trade-off |
-| --- | --- | --- | --- |
-| pygame as the graphics layer | MLX, tkinter, arcade | pygame is available on Linux, Windows and macOS, supports SVG sprites through SDL_image, and is the common choice for 42 Python game projects. | pygame is a dependency outside the standard library. |
-| State stack for screens | One large game loop with mode flags | Overlays such as pause and death are natural when every state is drawn and only the top state updates. | Slightly more indirection when tracing a transition. |
-| Flat JSON configuration | Nested per-level array | A flat file is easy to document, easy to clamp and easy to edit during a demo. | Per-level overrides are not supported. |
-| SQLite for highscores | JSON file, plain text, pickle | Atomic commits, deterministic ordering with `ORDER BY`, a strict `LIMIT` and no custom parser. | The database file is binary and not human-readable. |
-| Bitmask maze cells shared with the generator | Convert the maze to a separate grid | The generator already publishes wall bitmasks. Reusing them avoids a lossy conversion and keeps rendering and collision consistent. | The game is coupled to the generator's bit values, which are documented. |
-| Breadth-first ghost pathfinding | Random walk, greedy distance, A* | BFS gives a shortest path in an unweighted corridor graph and is fast enough for four ghosts at 60 FPS. | No weighting for travel time or risk. |
-| Dedicated level RNG | Global `random` only | The generator seeds the global RNG internally. A local `random.Random` keeps pellet placement reproducible for the fixed first level. | Two RNG sources must be kept in mind. |
-| PyInstaller one-file plus CI matrix | zipapp, Nuitka, manual builds | One file is easy to distribute, and the GitHub Actions matrix proves the build on three operating systems. | One-file startup is slower because the bundle is unpacked. |
+The alternative was one big loop with mode flags. It starts simple but
+gets messy when more than two overlays can appear.
 
-## Data flow
+### Flat JSON configuration
 
-1. `pac-man.py` validates the CLI, loads `Config`, opens `Database` and
-   creates `Game`.
-2. `App` resets the state stack to the main menu.
-3. Starting a game calls `Game.start_new_game`. The configured `level`
-   becomes the first level number. `new_level(seeded=True)` builds the
-   first maze from the configured seed.
-4. `Game` creates Pac-Man at the walkable tile nearest the maze centre,
-   computes the reachable tile set, places normal pellets on reachable
-   tiles and places one power pellet at each corner.
-5. `GameScreen.update` advances the timer, Pac-Man, pellets, ghosts,
-   collisions and level completion.
-6. On death, `DyingState` plays the animation over a frozen frame. On
-   game over or victory, `NameEntryScreen` collects a name, the database
-   stores the score and the app returns to the main menu.
-7. `Game.run` closes the database and pygame on exit.
+We kept the config flat: one key per setting. It is easy to document,
+easy to clamp and easy to edit during a demo. The trade-off is that we
+cannot override settings per level, but we did not need that.
 
-## Configuration model
+Every key has a type and a range. A wrong type falls back to the
+default, an out-of-range number is clamped, and unknown keys are
+ignored. The parser strips `#`, `//` and block comments before handing
+the text to `json.loads`.
 
-The configuration is stored in a flat dictionary. Each key has a typed
-default and, for numbers, a safe range. Loading follows this order:
+### SQLite for highscores
 
-1. Read the file with UTF-8 BOM tolerance.
-2. Remove `#`, `//` and `/* */` comments while preserving comment
-   markers inside strings.
-3. Parse JSON and require an object at the root.
-4. Report unknown keys and ignore them.
-5. For each known key, use the value if the type is correct, clamp it if
-   it is out of range, or use the default if it is unusable.
-6. Cross-clamp `level` to `max_levels`.
+A JSON file would have worked, but SQLite gives us ordering and a limit
+for free, plus atomic writes and a standard library driver. The table
+only has a name and a score. After each insert we delete everything
+outside the top ten. If the file is missing or corrupt, the game runs
+with an empty board instead of crashing.
 
-This model is intentionally boring. It is easy to test, easy to explain
-and impossible to crash with a bad value.
+### Bitmask maze cells
 
-## Ghost model
+The A-Maze-Ing package already publishes each cell as a wall bitmask:
+north `1`, east `2`, south `4`, west `8`. We use that value for drawing
+walls, checking movement and pathfinding. We did not convert it to a
+second grid, because that would add a lossy step and another source of
+bugs.
 
-Ghost movement is a small state machine:
+### Movement between tile centres
 
-- `CHASE`: BFS toward the subclass target.
-- `SCATTER`: BFS toward the home corner. Reserved for future scatter
-  phases, and used as the frightened retreat target.
-- `FRIGHTENED`: BFS toward the corner farthest from Pac-Man at 60
-  percent speed. Edible.
-- `DEAD_PATHING`: BFS toward the spawn corner at double speed. Not
-  edible, not dangerous.
-- `DEAD_WAITING`: invisible at the spawn corner for five seconds.
-- `FROZEN`: holds the previous state and skips movement. If the
-  previous state was frightened, the ghost stays edible.
+Pac-Man and the ghosts move from centre to centre. A direction press is
+queued and resolved at the next centre, so a turn pressed slightly early
+is not lost. A reverse press is applied immediately, even mid-tile. The
+shared `can_move` helper decides whether a side of a cell has a wall, so
+Pac-Man and the ghosts obey the same rule.
 
-A frozen ghost keeps a `resume_state`, so a freeze does not silently
-turn a frightened ghost into a dangerous one or an eaten ghost into a
-live one. This was one of the trickiest edge cases in the project.
+### Breadth-first ghost pathfinding
 
-## Rendering model
+Four ghosts at 60 FPS in a 20 by 20 maze do not need A*. BFS gives a
+shortest path and is fast enough. Each ghost subclass only supplies a
+target tile. The base class handles turning, wall checks, frightened
+state, eaten state and drawing.
 
-The maze walls are drawn once per level into a cached transparent
-surface. Pellets are drawn every frame because they are eaten. Sprites
-are loaded once and cached by path, with Pac-Man's open-mouth frames
-aligned so the body does not jump. The HUD is drawn every frame. The
-last frame without Pac-Man is cached so the death animation can be
-played over a stable background.
+We made frightened ghosts run to the corner farthest from Pac-Man. The
+first version sent them to their own corner, which looked wrong when the
+player was standing near that corner.
 
-## Packaging model
+### Packaging
 
-`42-pacman.spec` bundles the `resources` directory and the application
-code. The build is a one-file executable on Linux and Windows and a
-`.app` bundle on macOS. `make package` copies `config.json` and
-`README.md` next to the artifact. Packaged runs read the configuration
-from the executable directory or the PyInstaller bundle, and store the
-database in the platform user-data directory.
+`42-pacman.spec` builds a one-file executable on Linux and Windows and a
+`.app` bundle on macOS. The spec includes the sprites and font, and we
+also copy `config.json` and the README next to the build. CI runs the
+same recipe on all three systems.
+
+## How the parts fit together
+
+`pac-man.py` reads the CLI and creates `Config`, `Database` and `Game`.
+`App` owns the menu flow and the shared `Theme`. `Game` owns the level,
+pellets, Pac-Man, ghosts, score, timer and cheats. `StateManager` owns
+the screen stack. `PacMan` and `Ghost` own their movement and animation
+but use `models.can_move` for walls. `Database` is the only place with
+SQL.
+
+## Things that were harder than expected
+
+- Keeping the ghost state machine correct when freeze, fright and eaten
+  states overlap.
+- Getting the death animation to play without the game continuing in the
+  background.
+- Making the first level fully reproducible. The maze seed was easy, but
+  the pellet layout used the global random state, so we gave each level
+  its own `random.Random`.
+- Keeping flake8 and mypy clean while the UI file grew.
+- Packaging resources and the config file so the executable works
+  outside the repository.
 
 ## Known limitations
 
-- There is no audio.
-- Ghosts do not alternate scatter and chase phases on a timer. They
-  chase continuously until frightened or eaten, which keeps the
-  behaviour easy to follow.
-- The level timer restarts the current level and costs a life when it
-  expires. This is a deliberate design choice.
-- Highscores are local to the machine, not global.
-- The package is prepared for an unlisted itch.io release. The upload is
-  a manual team step and is documented in `deployment.md`.
+- No audio.
+- Ghosts always chase outside frightened mode. There is no timed
+  scatter/chase cycle.
+- The timer restarts the level and costs a life when it reaches zero.
+- Highscores are local to the machine.
+- The itch.io upload is a manual step outside the repository.

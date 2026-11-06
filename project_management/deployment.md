@@ -1,19 +1,17 @@
-# Deployment checklist
+# Deployment
 
-The repository produces a self-contained package. The upload to itch.io
-is a manual team step because it requires the team account.
+The game is packaged with PyInstaller. The upload to itch.io is done by
+hand because it needs the team account.
 
-## 1. Build locally
+## Build the package
 
 ```sh
 make install
 make package
 ```
 
-This runs PyInstaller with `42-pacman.spec`, then copies `config.json`
-and `README.md` into `dist/`.
-
-Expected local artifacts on Linux:
+`make package` runs `42-pacman.spec` and then copies `config.json` and
+`README.md` next to the build. On Linux the output is:
 
 ```text
 dist/
@@ -22,13 +20,12 @@ dist/
 └── README.md
 ```
 
-On macOS the application is `dist/42-pacman.app` and the same two
-documents are copied next to it. On Windows the executable is
-`dist/42-pacman.exe`.
+On Windows the executable is `dist/42-pacman.exe`. On macOS the app is
+`dist/42-pacman.app`.
 
-## 2. Smoke test the package
+## Check the build
 
-Linux:
+Run the Linux smoke test:
 
 ```sh
 cd dist
@@ -36,21 +33,17 @@ SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy timeout 5 ./42-pacman
 echo $?
 ```
 
-A timeout exit code of `124` is success. Any other non-zero code is a
-failure. On a desktop session, run `./42-pacman` normally and play for
-one minute.
+`124` means the game was still running when the timeout fired, which is
+what we want. Any other non-zero code is a problem. On a desktop, just
+run `./42-pacman` and play for a minute.
 
-Check that:
+Check that the menu opens, the instructions screen works, a game starts
+with the config next to the executable, a score is saved, and the
+window closes cleanly.
 
-- the main menu opens;
-- `INSTRUCTIONS` opens;
-- a game starts with the bundled or adjacent `config.json`;
-- a highscore is saved in the platform user-data directory;
-- the process exits cleanly when the window is closed.
+## Gather the CI artifacts
 
-## 3. Collect the CI artifacts
-
-The workflow at `.github/workflows/build.yml` builds:
+The workflow in `.github/workflows/build.yml` builds three artifacts:
 
 | Runner | Artifact |
 | --- | --- |
@@ -58,13 +51,11 @@ The workflow at `.github/workflows/build.yml` builds:
 | Windows latest | `42-pacman-windows` |
 | macOS latest | `42-pacman-macos` |
 
-Download each artifact from the Actions run. The macOS artifact is a
-DMG. The Linux artifact is a single executable. The Windows artifact is
-a single `.exe`.
+Download them from the Actions run. The Linux and Windows artifacts
+contain the executable, `config.json` and `README.md`. The macOS
+artifact is a DMG with the app and both documents inside.
 
-## 4. Prepare the upload folders
-
-Keep each platform in its own folder so the itch.io channels stay clean:
+## Put each platform in its own folder
 
 ```text
 release/
@@ -82,23 +73,22 @@ release/
     └── README.md
 ```
 
-On Linux, restore the executable bit if the archive extractor dropped
-it:
+On Linux, restore the executable bit if the extractor dropped it:
 
 ```sh
 chmod +x release/linux/42-pacman
 ```
 
-On macOS, zip the `.app` bundle if the channel expects a zip:
+If the macOS channel wants a zip, make one:
 
 ```sh
 cd release/macos
 zip -r 42-pacman-macos.zip 42-pacman.app config.json README.md
 ```
 
-## 5. Upload with butler
+## Upload with butler
 
-Install butler from https://itch.io/docs/butler/ and authenticate once:
+Install butler from https://itch.io/docs/butler/ and log in once:
 
 ```sh
 butler login
@@ -110,67 +100,37 @@ project path:
 ```sh
 butler push release/linux   <account>/<project>:linux   --userversion 1.0.0
 butler push release/windows <account>/<project>:windows --userversion 1.0.0
-butler push release/macos   <account>/<project>:macos   --userversion 1.0.0
-```
-
-If the macOS channel expects a zip, push the zip instead:
-
-```sh
 butler push release/macos/42-pacman-macos.zip <account>/<project>:macos --userversion 1.0.0
 ```
 
-## 6. Configure the page
+## Page settings
 
-- Set the project visibility to draft, restricted or unlisted.
-- Add a short description that says the package is an educational
-  42 project.
-- List the controls: arrow keys or WASD, P or Escape to pause, cheat
-  keys `1` to `5`.
-- Explain that a `config.json` can be placed next to the executable to
-  override the defaults.
-- Add the repository link and the student names tlogtenb and asylla.
-- Mark the build as free.
+- Set the project to draft, restricted or unlisted.
+- Mark it as a free educational project from 42.
+- List the controls: arrow keys or WASD, P or Escape to pause, keys `1`
+  to `5` for cheats.
+- Mention that a `config.json` next to the executable overrides the
+  defaults.
+- Add the repository link and the names tlogtenb and asylla.
 
-## 7. Verify the uploaded build
+## After upload
 
-1. Open the page in a private browser window.
-2. Download the Linux, Windows and macOS builds.
-3. Run each build and play for one minute.
-4. Confirm the configuration next to the executable is read.
+1. Open the page in a private window.
+2. Download each platform build.
+3. Run it and play for a minute.
+4. Confirm the config next to the executable is read.
 5. Confirm a highscore survives a restart.
-6. Confirm the in-game Instructions screen is reachable from the menu.
-7. Confirm the download page shows the correct version.
+6. Confirm the instructions screen is reachable.
+7. Add the public URL to the project page or the release notes.
 
-## 8. Final repository updates
+If a channel is broken, `butler status` and `butler undo` can roll it
+back before you push a fixed build.
 
-After the upload:
-
-- add the public itch.io URL to the project page and to the release
-  notes;
-- optionally add it to `README.md` under a `Public build` line;
-- commit the documentation update.
-
-## Rollback
-
-If an uploaded channel is broken:
-
-```sh
-butler status <account>/<project>:<channel>
-butler undo   <account>/<project>:<channel>
-```
-
-Then fix the build, bump the version and push again.
-
-## Security and privacy
+## Notes
 
 - Do not commit the itch.io API key or butler credentials.
+- The game makes no network requests.
 - The database stores only the player name and score on the local
   machine.
-- The game makes no network requests.
-- The packaged build contains no analytics.
-
-## Current status
-
-The package recipe, the CI matrix and the local smoke test are complete.
-The upload itself is pending because it requires the team's itch.io
-account. The public URL is added after the upload.
+- The package builds and smoke tests pass. The upload is the only step
+  that needs the team account.

@@ -2,99 +2,82 @@
 
 ## Team
 
-| Student | Role | Main responsibility |
-| --- | --- | --- |
-| tlogtenb | Technical lead and integrator | Architecture, configuration, maze integration, player movement, state stack, UI, database, cheats, packaging, CI, documentation and automated tests |
-| asylla | Gameplay lead | Ghost class foundation, per-ghost targets, frightened state, super-pacgum interaction, collision and eaten-ghost behaviour, gameplay validation |
+| Student | Main part of the work |
+| --- | --- |
+| tlogtenb | Project setup, config, maze integration, movement, state stack, UI, database, cheats, packaging, CI and tests |
+| asylla | Ghost classes and targets, frightened state, super-pacgums, collision, eaten-ghost behaviour and gameplay testing |
 
-The project was a two-student collaboration. Both students reviewed
-each other's work and both are expected to explain any module in review.
+We split the work by file and feature. One person usually wrote a
+feature, the other reviewed it and played the build. The ghost work was
+shared more closely: tlogtenb wrote the early base class and later
+pathfinding refactor, asylla wrote most of the ghost class and the four
+targets, and we pair-programmed several of the collision, fright and
+freeze fixes.
 
-## How decisions were made
+## How we worked
 
-- **Feature ownership**: each feature had one owner who made the final
-  call, with the other student reviewing.
-- **Architecture decisions**: discussed in the weekly checkpoint and
-  recorded in `project_analysis.md`. A decision was accepted when both
-  students could explain the trade-off.
-- **Interface changes**: announced before merging, because a change to
-  `Game`, `Ghost` or `State` affects both students.
-- **Bug triage**: a bug that blocks play or the build is fixed first. A
-  cosmetic bug is added to the backlog.
-- **AI usage**: AI suggestions were treated as proposals. The author
-  had to understand, run and test every accepted suggestion.
+- We kept a shared task list with the next feature and the next bug.
+- Before starting a change that touched `Game`, `Ghost` or the state
+  stack, we told the other person, because those files were used by both
+  of us.
+- We reviewed each other's commits before merging and played the game
+  after large changes.
+- When we disagreed, we tried the simpler option first and kept it only
+  if it survived a play session and the tests.
+- We used the commit history as the main record of what changed. That is
+  why the timeline and contribution table are based on it.
 
-## Communication
+## Where the time went
 
-- Short asynchronous messages during the week for interface changes and
-  blockers.
-- A weekly checkpoint to compare progress against the plan and update
-  `timeline.md` and `risk_analysis.md`.
-- A face-to-face integration session before packaging and before the
-  final compliance pass.
-- Git commits are small and use a `feat:`, `fix:`, `chore:`, `perf:`,
-  `refactor:`, `build:` or `docs:` prefix.
+Most of the code was written in July, August and October. September was
+mostly quiet because of other coursework. The ghost collision and
+fright work was finished in October, and the timer, victory flow,
+packaging and documentation were finished in early November.
 
-## Issue handling
+The full history has more than 80 commits. Most are recorded under
+tlogtenb's account and 15 are recorded under asylla's. Some commits under
+tlogtenb's account cover pair-programming sessions with asylla on ghost
+collision, frightened behaviour and freeze edge cases. The table below
+describes the work, not the commit count.
 
-1. Reproduce the issue and write down the smallest failing scenario.
-2. Assign an owner.
-3. Add or update an automated test when the issue is in Python logic.
-4. Fix the root cause, not the symptom.
-5. Run `make lint`, `make lint-strict` and `make test`.
-6. Commit with a message that describes the behaviour change.
-
-Examples from the project:
-
-- The starting level was always 1 because `Config.level` was loaded but
-  never used. The fix moved `level` into `Game.start_new_game` and added
-  `test_start_uses_configured_level`.
-- Pellet placement sampled the whole walkable set, which could put a
-  pellet behind an unreachable wall. The fix computes a reachable set
-  from the player spawn first.
-- Extra lives were capped at three, so pressing the cheat key at the
-  start did nothing. The fix allows repeated extra lives up to the safe
-  maximum.
-- The name prompt originally opened the leaderboard after saving. The
-  required game loop ends at the main menu, so the flow now returns to
-  the main menu and shows the saved score there.
-
-## Contribution ownership
+## Contribution table
 
 | Area | tlogtenb | asylla |
 | --- | --- | --- |
-| Repository, tooling and dependency management | Lead | Review |
-| Configuration parser, defaults, clamping and CLI | Lead | Testing and review |
-| A-Maze-Ing integration and maze rendering | Lead | Review |
-| Pac-Man movement, input buffer and wall collision | Lead | Testing and review |
-| Ghost class foundation | Integration and pathfinding refinement | Lead, original class and per-ghost targets |
-| Frightened mode and super-pacgum interaction | Game-loop integration | Lead, frighten state and collision logic |
-| Eaten-ghost eyes, respawn and freeze | Lead, state refactor | Co-development and gameplay validation |
-| State stack, screens, theme and HUD | Lead | Playtesting and review |
-| SQLite highscores and persistence | Lead | Persistence testing |
-| Cheat mode and review usability | Lead | Playtesting |
-| Level timer, victory screen and progression | Lead | Testing and review |
-| Packaging, CI and release artifacts | Lead | Smoke testing |
-| Project management documents | Editor and co-author | Co-author |
-| Automated tests | Lead | Acceptance testing |
+| Repository, dependencies and Makefile | Wrote and maintained | Review |
+| Config parser, defaults and CLI | Wrote and tested | Reviewed the config format |
+| Maze package integration and wall rendering | Wrote | Reviewed the bitmask use |
+| Pac-Man movement, input buffer and wall collision | Wrote | Playtested and reported edge cases |
+| Ghost base class and four ghost types | Wrote the early base class and refined pathfinding | Wrote most of the ghost class and the four targets |
+| Frightened mode and super-pacgums | Connected it to the game loop | Wrote the frighten state and collision changes |
+| Eaten ghosts, eyes and respawn | Refactored the state handling | Co-developed and playtested |
+| State stack and screens | Wrote the state manager, screens and theme | Playtested and reviewed the flow |
+| Highscore database | Wrote the SQLite layer | Tested persistence and name entry |
+| Cheat mode | Wrote the cheat state and hotkeys | Playtested every cheat |
+| Level timer and victory flow | Wrote | Tested the full game cycle |
+| Packaging and CI | Wrote the spec and workflow | Smoke-tested the builds |
+| Project management documents | Wrote the first draft | Reviewed and corrected the contribution record |
+| Tests | Wrote the pytest suite | Wrote the manual acceptance cases |
 
-### Commit record note
+## Bugs we fixed together
 
-Most of the history is recorded under tlogtenb's account, and 15 commits
-are recorded under asylla's account. Some commits recorded on tlogtenb's
-account cover pair-programming sessions with asylla on ghost collision,
-frightened behaviour and freeze edge cases. The contribution table
-therefore describes ownership of the work, not raw commit counts.
+- The config `level` value was loaded but never used, so every game
+  started at level 1.
+- A pellet could be placed on a tile that was not reachable from the
+  spawn, which made a level impossible to finish.
+- Freezing a frightened ghost could make it dangerous again.
+- The extra-life cheat stopped working once the player had three lives.
+- Saving a score opened the leaderboard instead of returning to the main
+  menu.
+- The first level was not fully reproducible because pellet placement
+  used the global random state.
 
-## Definition of done
+## How we resolved disagreements
 
-A feature was considered done only when:
-
-- it is implemented in the repository;
-- it has type hints and a docstring;
-- `make lint` passes;
-- an automated test exists, or a manual acceptance step is written in
-  `acceptance_test_plan.md`;
-- the other student has played with it or reviewed the diff;
-- the README or the instructions screen explains it if a user can see
-  it.
+We did not have a formal voting process. If we disagreed on a design
+choice, we looked at which option was easier to test and explain. For
+example, we kept the flat config because it was easier to clamp and
+document than a nested per-level structure. We kept the state stack
+because it made pause and death overlays much simpler than mode flags.
+If a choice did not work in a play session, we changed it, even if it
+was already merged.

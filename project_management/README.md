@@ -1,56 +1,35 @@
 # Project management
 
-This directory is the evidence of how the Pac-Man project was planned,
-tracked, tested and released. It is written so a reviewer can understand
-the project in about one minute, then open the document that answers a
-specific question.
+We kept project management lightweight: a shared task list, short
+check-ins when one of us started a new feature, and the git history as
+the main record. This folder collects the notes we kept and the
+retrospective evidence.
+
+## Start here
+
+- `team_organization.md`: who did what and how we split the work.
+- `timeline.md`: the actual phases and dates, including the slip in the
+  ghost phase.
+- `project_analysis.md`: why the code is structured the way it is.
+- `risk_analysis.md`: what could have gone wrong and what we did about
+  it.
+- `progress_tracking.md`: what was finished at each stage and what is
+  left.
+- `acceptance_test_plan.md`: how we tested the game, including the bug
+  log.
+- `blockers.md`: the problems that actually slowed us down.
+- `deployment.md`: how the package is built and uploaded.
 
 ## One-minute tour
 
-1. **How the work was split**: `team_organization.md`. Two students,
-   tlogtenb and asylla, shared ownership by feature area. The table also
-   explains that some commits recorded on tlogtenb's account cover joint
-   ghost work with asylla.
-2. **When the work happened**: `timeline.md`. It shows the original
-   phase plan next to the actual milestones reconstructed from the git
-   history and weekly checkpoints.
-3. **Why the project looks the way it does**: `project_analysis.md`. It
-   records the architecture choices, alternatives and trade-offs.
-4. **What could have gone wrong**: `risk_analysis.md`. It is a live
-   register with probability, impact, mitigation and status.
-5. **How progress was measured**: `progress_tracking.md`. It compares
-   planned and completed work and records the git history summary.
-6. **How quality was checked**: `acceptance_test_plan.md`. Every
-   requirement is mapped to an automated test or a manual step, and the
-   bugs found during the project are listed with their fixes.
-7. **What blocked the team**: `blockers.md`. Each blocking point and
-   conflict is recorded with its resolution.
-8. **How the game is shipped**: `deployment.md`. It contains the
-   PyInstaller build, artifact list and the itch.io upload checklist.
+We started with the project skeleton and the configuration loader, then
+spent most of July and August on the maze, movement and sprites. The
+ghost work was started in August but only fully connected to the game in
+October, which is the biggest slip in the project. The screens, cheats,
+timer and victory flow came together in late October and early November.
+The final pass was about fixing the config `level` bug, adding the
+missing instructions screen, writing tests and cleaning up packaging.
 
-## Document index
-
-| Document | Purpose |
-| --- | --- |
-| `README.md` | This tour and index |
-| `timeline.md` | Planned phases, actual milestones, Gantt view |
-| `project_analysis.md` | Scope, architecture and technical decisions |
-| `risk_analysis.md` | Risk register and mitigation |
-| `team_organization.md` | Roles, decisions, contributions |
-| `progress_tracking.md` | Progress against plan and git summary |
-| `acceptance_test_plan.md` | Requirements checklist, test mapping and bug log |
-| `blockers.md` | Blocking points and conflicts |
-| `deployment.md` | Packaging and publication checklist |
-
-## How to use this directory during a review
-
-- Start with `timeline.md` to see the project rhythm.
-- Open `team_organization.md` when asked who did what.
-- Open `acceptance_test_plan.md` when asked how a requirement was
-  verified.
-- Open `risk_analysis.md` when asked what could still go wrong.
-- Open `deployment.md` when asked how the package was produced.
-
-The documents are deliberately short and factual. Dates and commit
-counts come from the repository history. Where a decision was made in a
-discussion and not in a commit, the rationale is recorded here.
+If you only read two files, read `timeline.md` and
+`team_organization.md`. They explain when the work happened and who did
+which part.
