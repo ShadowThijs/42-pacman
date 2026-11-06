@@ -251,6 +251,12 @@ dependency by `pyproject.toml`. We did not modify, vendor or reimplement
 the package. Reinstalling the same wheel is enough to reproduce the
 build.
 
+```sh
+uv sync
+# or
+pip install maze/mazegenerator-2.0.2-py3-none-any.whl
+```
+
 The loader uses the package's public interface exactly:
 
 ```python
@@ -407,8 +413,9 @@ The suite currently contains 38 tests, all passing. `make lint` and
 ## Project Management
 
 We managed the project with a shared task list and short check-ins
-between work sessions. The dedicated directory `project_management/`
-contains the notes and retrospective evidence:
+between work sessions. The dedicated directory
+[`project_management/`](project_management/) contains the notes and
+retrospective evidence:
 
 - `README.md`: a one-minute tour and document index.
 - `timeline.md`: actual phases and the Gantt-style view.
@@ -447,7 +454,7 @@ raw commit counts.
 
 ## Resources
 
-Classic references:
+### Classic references
 
 - Pac-Man, Namco, 1980. The original arcade game and its level design.
 - Jamey Pittman, "The Pac-Man Dossier", a detailed reference for ghost
@@ -458,7 +465,7 @@ Classic references:
 - A-Maze-Ing maze generator package, version 2.0.2.
 - 42 curriculum Pac-Man project guidelines.
 
-AI assistance:
+### AI assistance
 
 We used AI tools for code review, architecture checks, debugging
 hypotheses, test scaffolding, documentation editing and repetitive

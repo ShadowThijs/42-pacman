@@ -32,6 +32,14 @@
 | Timer and packaging | Level timer, victory screen and CI build | Final fixes and documentation |
 | Final pass | Config `level`, instructions, tests and docs | itch.io upload |
 
+## Compared to the phase list
+
+Our phase order was setup, config and maze, movement, ghosts, screens,
+cheats, timer and packaging, then documentation. The ghost phase slipped
+from August to October. The other phases stayed in order, but the timer
+and victory work only happened in early November because the screens and
+cheats came first.
+
 ## Time distribution
 
 The commit history shows the shape of the project better than a weekly
