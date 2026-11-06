@@ -184,6 +184,33 @@ def test_frightened_ghost_becomes_edible(session: tuple[Game, App]) -> None:
     assert ghost.state == GhostState.CHASE
 
 
+def test_frightened_ghost_flees_to_far_corner(
+    session: tuple[Game, App],
+) -> None:
+    """A frightened ghost targets the corner farthest from Pac-Man."""
+    game, _ = session
+    game.first_input = True
+    game.release_ghosts(10.0)
+    ghost = game.ghosts[0]
+    ghost.frighten()
+    target = ghost.target_tile(game.pac, None)
+    corners = (
+        (0, 0),
+        (0, game.config.width - 1),
+        (game.config.height - 1, game.config.width - 1),
+        (game.config.height - 1, 0),
+    )
+    farthest: int = max(
+        (row - game.pac.row) ** 2 + (col - game.pac.col) ** 2
+        for row, col in corners
+    )
+    target_distance: int = (
+        (target.row - game.pac.row) ** 2
+        + (target.col - game.pac.col) ** 2
+    )
+    assert target_distance == farthest
+
+
 def test_eating_frightened_ghost_scores(session: tuple[Game, App]) -> None:
     """Touching an edible ghost awards points and sends it home."""
     game, _ = session

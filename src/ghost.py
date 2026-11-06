@@ -305,14 +305,37 @@ class Ghost:
     ) -> Position:
         """Return the tile this ghost wants to reach right now.
 
-        Frightened ghosts and returning eyes retreat to the ghost's own
-        corner instead of chasing Pac-Man.
+        Frightened ghosts retreat to the corner farthest from Pac-Man,
+        and returning eyes go to their spawn corner.
         """
         if self.state == GhostState.DEAD_PATHING:
             return self.spawn_pos
-        if self.state in (GhostState.FRIGHTENED, GhostState.SCATTER):
+        if self.state == GhostState.SCATTER:
             return self.scatter_corner
+        if self.state == GhostState.FRIGHTENED:
+            return self._flee_corner(pac)
         return self.chase_target(pac, blinky)
+
+    def _flee_corner(self, pac: PacMan) -> Position:
+        """Return the corner farthest from Pac-Man.
+
+        Frightened ghosts should move away from the player.  Picking the
+        farthest corner keeps their retreat sensible even when Pac-Man
+        is standing near their own home corner.
+        """
+        height: int = len(self.maze.maze)
+        width: int = len(self.maze.maze[0])
+        corners: tuple[Position, ...] = (
+            Position(0, 0),
+            Position(0, width - 1),
+            Position(height - 1, width - 1),
+            Position(height - 1, 0),
+        )
+        return max(
+            corners,
+            key=lambda corner: (corner.row - pac.row) ** 2
+            + (corner.col - pac.col) ** 2,
+        )
 
     def _clamp(self, row: int, col: int) -> Position:
         """Clamp a target to a valid maze tile."""
@@ -477,7 +500,6 @@ class Ghost:
         self.state = resumed
         if resumed == GhostState.FRIGHTENED:
             self.timer = self.FRIGHTENED_DURATION
-            self.target = self.scatter_corner
         self.reverse_allowed = True
 
 

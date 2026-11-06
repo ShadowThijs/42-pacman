@@ -95,7 +95,8 @@ Ghost movement is a small state machine:
 - `CHASE`: BFS toward the subclass target.
 - `SCATTER`: BFS toward the home corner. Reserved for future scatter
   phases, and used as the frightened retreat target.
-- `FRIGHTENED`: BFS toward the home corner at 60 percent speed. Edible.
+- `FRIGHTENED`: BFS toward the corner farthest from Pac-Man at 60
+  percent speed. Edible.
 - `DEAD_PATHING`: BFS toward the spawn corner at double speed. Not
   edible, not dangerous.
 - `DEAD_WAITING`: invisible at the spawn corner for five seconds.
