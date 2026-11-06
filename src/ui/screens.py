@@ -72,11 +72,11 @@ MOVE_KEYS: dict[int, int] = {
     pg.K_d: Direction.East,
 }
 CHEAT_HINTS: tuple[tuple[str, int], ...] = (
-    ("1 Invincible", -210),
-    ("2 Speedhack", -90),
-    ("3 Ghost freeze", 35),
-    ("4 Add live", 155),
-    ("5 Skip level", 270),
+    ("1 Invincible", -145),
+    ("2 Speedhack", -25),
+    ("3 Ghost freeze", 95),
+    ("4 Add live", 215),
+    ("5 Skip level", 335),
 )
 INSTRUCTION_LINES: tuple[tuple[str, str], ...] = (
     ("MOVE WITH ARROW KEYS OR WASD", "body"),
@@ -87,7 +87,7 @@ INSTRUCTION_LINES: tuple[tuple[str, str], ...] = (
     ("LOSE ALL LIVES TO END THE GAME", "body"),
     ("ENTER YOUR NAME WHEN IT ENDS", "body"),
     ("", "body"),
-    ("CHEAT MODE: KONAMI CODE ON MENU", "small"),
+    ("ENTER THE KONAMI CODE ON THE MENU", "small"),
     ("UP UP DOWN DOWN LEFT RIGHT LEFT RIGHT A B", "small"),
     ("1 INVINCIBLE   2 SPEEDHACK", "small"),
     ("3 FREEZE   4 EXTRA LIFE   5 SKIP LEVEL", "small"),
@@ -757,13 +757,13 @@ class GameScreen(State):
         if lives > 5:
             self.theme.draw_text(
                 screen,
-                f"+{lives - 5}",
+                f"X{lives - 5}",
                 self.theme.small_font,
                 self.theme.text_color,
                 topleft=(left + 5 * 26 + 2, y + 2),
             )
         cheats: Cheats = self.game.cheats
-        if cheats.enabled:
+        if cheats.enabled and screen.get_width() >= 760:
             active: tuple[bool, ...] = (
                 cheats.invincible(),
                 cheats.speedhack(),
@@ -806,7 +806,7 @@ class GameScreen(State):
                 Colors.yellow,
                 center=(
                     (left + right) // 2,
-                    (top + bottom) // 2,
+                    (top + bottom) // 2 - 2 * CELL_SIZE,
                 ),
             )
 
