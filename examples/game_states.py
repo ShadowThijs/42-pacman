@@ -15,7 +15,7 @@ There are two common ways to do this:
             if state == "playing":
                 ...handle movement keys...      # only runs while playing
             elif state == "paused":
-                ...handle pause keys...         # movement keys never reach here
+                ...handle pause keys...        # movement keys never get here
 
     Input is isolated purely because the movement keys live inside the
     ``state == "playing"`` branch. You can drop this straight into the
@@ -132,7 +132,10 @@ class PauseState(State):
         screen.blit(overlay, (0, 0))
         font = pygame.font.SysFont("arial", 48, bold=True)
         title = font.render("PAUSED", True, WHITE)
-        screen.blit(title, title.get_rect(center=(WIDTH // 2, HEIGHT // 2 - 20)))
+        title_rect = title.get_rect(
+            center=(WIDTH // 2, HEIGHT // 2 - 20)
+        )
+        screen.blit(title, title_rect)
         small = pygame.font.SysFont("arial", 20)
         hint = small.render("P / ESC resume    Q quit", True, WHITE)
         screen.blit(hint, hint.get_rect(center=(WIDTH // 2, HEIGHT // 2 + 30)))
@@ -155,10 +158,16 @@ class GameOverState(State):
         screen.fill(BLACK)
         font = pygame.font.SysFont("arial", 48, bold=True)
         title = font.render("GAME OVER", True, WHITE)
-        screen.blit(title, title.get_rect(center=(WIDTH // 2, HEIGHT // 2 - 40)))
+        title_rect = title.get_rect(
+            center=(WIDTH // 2, HEIGHT // 2 - 40)
+        )
+        screen.blit(title, title_rect)
         small = pygame.font.SysFont("arial", 24)
         score = small.render(f"Score: {self.score}", True, WHITE)
-        screen.blit(score, score.get_rect(center=(WIDTH // 2, HEIGHT // 2 + 10)))
+        score_rect = score.get_rect(
+            center=(WIDTH // 2, HEIGHT // 2 + 10)
+        )
+        screen.blit(score, score_rect)
         hint = small.render("R / SPACE restart", True, WHITE)
         screen.blit(hint, hint.get_rect(center=(WIDTH // 2, HEIGHT // 2 + 50)))
 

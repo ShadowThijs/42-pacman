@@ -24,6 +24,7 @@ Controls: mouse to click | ESC/Q quits
 """
 
 import pygame
+from collections.abc import Callable
 
 WIDTH, HEIGHT = 800, 600
 FPS = 60
@@ -48,14 +49,14 @@ class Button:
         text: str,
         font: pygame.font.Font,
         center: tuple[int, int],
-        on_click=None,
+        on_click: Callable[[], None] | None = None,
         size: tuple[int, int] = (240, 56),
     ) -> None:
         self.text = text
         self.font = font
         self.on_click = on_click
         self.rect = pygame.Rect(0, 0, *size)
-        self.rect.center = center          # anchor by center -> easy to lay out
+        self.rect.center = center      # anchor by center -> easy to lay out
         self.hovered = False
 
     def handle_event(self, event: pygame.event.Event) -> None:
@@ -85,7 +86,7 @@ def _column_starts(
 
 
 # --------------------------------------------------------------------------- #
-#  States                                                                      #
+#  States                                                                     #
 # --------------------------------------------------------------------------- #
 class State:
     """Base state. Override handle_event / update / draw in subclasses."""
@@ -190,7 +191,7 @@ class LeaderboardState(State):
 
 
 # --------------------------------------------------------------------------- #
-#  Game                                                                        #
+#  Game                                                                       #
 # --------------------------------------------------------------------------- #
 class Game:
     """Owns the window, fonts, clock, and the state stack."""
@@ -227,7 +228,7 @@ class Game:
                         and event.key in (pygame.K_q, pygame.K_ESCAPE)):
                     self.running = False
                 else:
-                    self.current.handle_event(event)   # mouse + keyboard both land here
+                    self.current.handle_event(event)  # mouse and keyboard
             self.current.update(dt)
             for state in self.stack:
                 state.draw(self.screen)

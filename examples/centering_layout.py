@@ -137,10 +137,10 @@ def main() -> None:
         # stays the fixed LOGICAL size, which is what we center against.
         win_w, win_h = pygame.display.get_window_size()
         size_text = size_font.render(f"window: {win_w} x {win_h}", True, WHITE)
-        screen.blit(
-            size_text,
-            size_text.get_rect(midbottom=(LOGICAL_W // 2, LOGICAL_H // 2 - 110)),
+        size_rect = size_text.get_rect(
+            midbottom=(LOGICAL_W // 2, LOGICAL_H // 2 - 110)
         )
+        screen.blit(size_text, size_rect)
 
         draw_top_title(screen, title_font)
         draw_centered_box(screen, body_font)
