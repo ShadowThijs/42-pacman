@@ -8,6 +8,7 @@ import pygame as pg
 
 from src.ui.screens import (
     GameScreen,
+    InstructionsScreen,
     LeaderboardScreen,
     NameEntryScreen,
     StartMenuScreen,
@@ -33,18 +34,28 @@ class App:
         self.show_start_menu()
         self.game.run()
 
-    def show_start_menu(self) -> None:
+    def show_start_menu(self, notice: str | None = None) -> None:
         """Replace the stack with the opening screen."""
         self.game.states.reset(
-            StartMenuScreen(self.game, self.theme, self)
+            StartMenuScreen(self.game, self.theme, self, notice)
         )
 
     def start_game(self) -> None:
         """Start a brand new game session."""
-        self.game.start_new_game()
+        if not self.game.start_new_game():
+            self.show_start_menu(
+                self.game.level_error or "COULD NOT START THE GAME"
+            )
+            return
         self.last_game_frame = None
         self.game.states.reset(
             GameScreen(self.game, self.theme, self)
+        )
+
+    def show_instructions(self) -> None:
+        """Show the controls and rules screen."""
+        self.game.states.reset(
+            InstructionsScreen(self.game, self.theme, self)
         )
 
     def show_leaderboard(
@@ -92,14 +103,19 @@ class App:
         self.game.states.pop()
 
     def submit_score(self, name: str, score: int | None = None) -> None:
-        """Persist the score, then show it on the leaderboard."""
+        """Persist the score, then return to the main menu."""
         actual: int = self.game.score if score is None else score
-        self.game.record_score(name, actual)
-        self.show_leaderboard((name, actual), actual)
+        saved: bool = self.game.record_score(name, actual)
+        notice: str = (
+            f"SCORE SAVED {actual:06d}"
+            if saved
+            else "COULD NOT SAVE SCORE"
+        )
+        self.show_start_menu(notice)
 
     def skip_score(self) -> None:
-        """Open the leaderboard without storing a name."""
-        self.show_leaderboard()
+        """Return to the main menu without storing a name."""
+        self.show_start_menu()
 
     def resume(self) -> None:
         """Remove the pause overlay."""

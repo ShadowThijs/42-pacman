@@ -12,6 +12,7 @@ from src import Cheats
 from src.models import (
     ALLOWED_NAME_CHARS,
     CELL_SIZE,
+    MAX_LIVES,
     MAX_NAME_LENGTH,
     OFFSET,
     Colors,
@@ -76,6 +77,20 @@ CHEAT_HINTS: tuple[tuple[str, int], ...] = (
     ("3 Ghost freeze", 35),
     ("4 Add live", 155),
     ("5 Skip level", 270),
+)
+INSTRUCTION_LINES: tuple[tuple[str, str], ...] = (
+    ("MOVE WITH ARROW KEYS OR WASD", "body"),
+    ("EAT EVERY DOT TO CLEAR A LEVEL", "body"),
+    ("SUPER DOTS MAKE GHOSTS EDIBLE", "body"),
+    ("PRESS P OR ESC TO PAUSE", "body"),
+    ("EACH LEVEL HAS A TIME LIMIT", "body"),
+    ("LOSE ALL LIVES TO END THE GAME", "body"),
+    ("ENTER YOUR NAME WHEN IT ENDS", "body"),
+    ("", "body"),
+    ("CHEAT MODE: KONAMI CODE ON MENU", "small"),
+    ("UP UP DOWN DOWN LEFT RIGHT LEFT RIGHT A B", "small"),
+    ("1 INVINCIBLE   2 SPEEDHACK", "small"),
+    ("3 FREEZE   4 EXTRA LIFE   5 SKIP LEVEL", "small"),
 )
 
 
@@ -230,13 +245,21 @@ class MenuScreen(State):
 class StartMenuScreen(MenuScreen):
     """Opening attract screen."""
 
-    def __init__(self, game: Game, theme: Theme, app: App) -> None:
+    def __init__(
+        self,
+        game: Game,
+        theme: Theme,
+        app: App,
+        notice: str | None = None,
+    ) -> None:
         """Build the attract screen."""
         self.app: App = app
+        self.notice: str | None = notice
         self._elapsed: float = 0.0
         self._konami_progress: int = 0
         self._flicker_remaining: float = 0.0
         self._high_score: int = game.best_score()
+        self._top_scores: list[tuple[str, int]] = game.leaderboard(5)
         self._pac: pg.Surface = pg.transform.smoothscale(
             game.sprites.pacman(Direction.East, 1), (48, 48)
         )
@@ -251,9 +274,10 @@ class StartMenuScreen(MenuScreen):
             theme,
             "42 PACMAN",
             [
-                ("PUSH ENTER TO START", lambda: app.start_game()),
-                ("LEADERBOARD", lambda: app.show_leaderboard()),
-                ("QUIT", lambda: app.quit()),
+                ("START GAME", lambda: app.start_game()),
+                ("VIEW HIGHSCORES", lambda: app.show_leaderboard()),
+                ("INSTRUCTIONS", lambda: app.show_instructions()),
+                ("EXIT", lambda: app.quit()),
             ],
             footer="ARROWS SELECT  ENTER CONFIRM",
             title_top=70,
@@ -339,6 +363,15 @@ class StartMenuScreen(MenuScreen):
                 y - score.get_height() // 2,
             ),
         )
+        if self.notice is not None:
+            self.theme.draw_text(
+                screen,
+                self.notice,
+                self.theme.body_font,
+                Colors.lime,
+                center=(center, 252),
+            )
+        self._draw_top_scores(screen)
 
         baseline: int = screen.get_height() - 150
         pac_x: int = center - 190 + int(math.sin(self._elapsed * 1.4) * 6)
@@ -359,6 +392,125 @@ class StartMenuScreen(MenuScreen):
                 topleft=(20, 20),
             )
 
+    def _draw_top_scores(self, screen: pg.Surface) -> None:
+        """Show the leading scores directly in the main menu."""
+        if screen.get_width() < 760:
+            return
+        left: int = 36
+        top: int = 300
+        self.theme.draw_text(
+            screen,
+            "TOP SCORES",
+            self.theme.small_font,
+            self.theme.text_dim,
+            topleft=(left, top),
+        )
+        if not self._top_scores:
+            self.theme.draw_text(
+                screen,
+                "NO SCORES YET",
+                self.theme.small_font,
+                self.theme.text_muted,
+                topleft=(left, top + 26),
+            )
+            return
+        row_y: int = top + 26
+        for index, (name, score) in enumerate(self._top_scores):
+            color: tuple[int, int, int] = (
+                Colors.yellow if index == 0 else Colors.white
+            )
+            line: str = (
+                f"{index + 1} {_safe_name(name)} {score:06d}"
+            )
+            self.theme.draw_text(
+                screen,
+                line,
+                self.theme.tiny_font,
+                color,
+                topleft=(left, row_y),
+            )
+            row_y += 22
+
+
+class InstructionsScreen(State):
+    """Controls, rules and cheat instructions."""
+
+    fills_background = True
+
+    def __init__(self, game: Game, theme: Theme, app: App) -> None:
+        """Build the instructions page and its back action."""
+        super().__init__(game)
+        self.theme: Theme = theme
+        self.app: App = app
+        self.lines: list[
+            tuple[str, pg.font.Font, tuple[int, int, int]]
+        ] = []
+        for text, style in INSTRUCTION_LINES:
+            if style == "small":
+                self.lines.append(
+                    (text, theme.small_font, theme.text_muted)
+                )
+            else:
+                self.lines.append((text, theme.body_font, Colors.white))
+        self.back: Button = Button(
+            "BACK",
+            theme.button_font,
+            (0, 0),
+            on_click=app.show_start_menu,
+            size=(200, 44),
+        )
+        self._layout_size: tuple[int, int] | None = None
+
+    def _layout(self, size: tuple[int, int]) -> None:
+        """Place the back button for the current window size."""
+        if size == self._layout_size:
+            return
+        self._layout_size = size
+        width, height = size
+        self.back.rect.center = (width // 2, height - 120)
+
+    def handle_event(self, event: pg.event.Event) -> None:
+        """Return to the main menu with Escape, Enter or the back button."""
+        self._layout(self.game.screen.get_size())
+        if event.type == pg.KEYDOWN and event.key in (
+            pg.K_ESCAPE,
+            pg.K_RETURN,
+            pg.K_KP_ENTER,
+            pg.K_BACKSPACE,
+        ):
+            self.app.show_start_menu()
+            return
+        self.back.handle_event(event)
+
+    def update(self, dt: float) -> None:
+        """Instructions are static."""
+
+    def draw(self, screen: pg.Surface) -> None:
+        """Draw the title, rules and back action."""
+        self._layout(screen.get_size())
+        self.theme.draw_background(screen)
+        self.theme.draw_title(
+            screen,
+            "INSTRUCTIONS",
+            55,
+            shadow_color=Colors.red,
+        )
+        center: int = screen.get_width() // 2
+        y: int = 150
+        for text, text_font, color in self.lines:
+            if text:
+                self.theme.draw_text(
+                    screen,
+                    text,
+                    text_font,
+                    color,
+                    center=(center, y),
+                )
+            y += text_font.get_height() + 10
+        self.back.selected = True
+        self.back.draw(screen)
+        self.theme.draw_footer(screen, "ESC BACK")
+
 
 class PauseMenuScreen(MenuScreen):
     """Pause overlay over the frozen maze."""
@@ -374,7 +526,7 @@ class PauseMenuScreen(MenuScreen):
             "PAUSED",
             [
                 ("RESUME", lambda: app.resume()),
-                ("RESTART", lambda: app.start_game()),
+                ("NEW GAME", lambda: app.start_game()),
                 ("MAIN MENU", lambda: app.show_start_menu()),
                 ("QUIT", lambda: app.quit()),
             ],
@@ -434,16 +586,23 @@ class GameScreen(State):
         elif key == pg.K_q:
             self.app.quit()
         elif key == pg.K_1:
-            cheat.invicible(not cheat.invicible())
+            cheat.activate()
+            cheat.invincible(not cheat.invincible())
         elif key == pg.K_2:
+            cheat.activate()
             cheat.speedhack(not cheat.speedhack())
         elif key == pg.K_3:
+            cheat.activate()
             frozen: bool = not cheat.ghostfreeze()
             cheat.ghostfreeze(frozen)
             self.game.set_ghost_freeze(frozen)
-        elif key == pg.K_4 and self.game.pac.lives < 3:
-            self.game.pac.lives += 1
+        elif key == pg.K_4:
+            cheat.activate()
+            self.game.pac.lives = min(
+                MAX_LIVES, self.game.pac.lives + 1
+            )
         elif key == pg.K_5:
+            cheat.activate()
             self.game.complete_level()
 
     def _poll_held_direction(self) -> None:
@@ -497,6 +656,9 @@ class GameScreen(State):
         pac_y: float = self.game.pac.y
         self.game.update(dt)
         self.high_score = max(self.high_score, self.game.score)
+        if self.game.level_error:
+            self.app.show_start_menu(self.game.level_error)
+            return
         if self.game.victory:
             self.app.last_game_frame = self.game.screen.copy()
             self.app.show_victory()
@@ -592,10 +754,18 @@ class GameScreen(State):
                 self._life_icon,
                 self._life_icon.get_rect(topleft=(left + index * 26, y)),
             )
+        if lives > 5:
+            self.theme.draw_text(
+                screen,
+                f"+{lives - 5}",
+                self.theme.small_font,
+                self.theme.text_color,
+                topleft=(left + 5 * 26 + 2, y + 2),
+            )
         cheats: Cheats = self.game.cheats
         if cheats.enabled:
             active: tuple[bool, ...] = (
-                cheats.invicible(),
+                cheats.invincible(),
                 cheats.speedhack(),
                 cheats.ghostfreeze(),
                 False,
