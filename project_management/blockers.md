@@ -45,7 +45,7 @@ final flow detects the life loss, freezes the last frame, runs
 
 Saving a score opened the leaderboard instead of returning to the main
 menu. We changed both save and skip to reset the stack to the main menu,
-and put the top five scores on the menu so the result is still visible.
+and keep a short saved-score message on the menu.
 
 ## `level` was loaded but ignored
 

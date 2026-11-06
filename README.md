@@ -55,7 +55,7 @@ make run
 `make install` uses `uv sync --all-groups` when `uv` is available and
 falls back to a local `.venv` with `pip` otherwise.
 
-Launch the game with exactly one argument, the configuration file:
+Normally the game is launched with one argument, the configuration file:
 
 ```sh
 python3 pac-man.py config.json
@@ -70,10 +70,11 @@ source .venv/bin/activate
 
 On Windows, use `.venv\Scripts\activate` instead.
 
-`make run` uses that exact form. A missing or extra argument prints a
-clear usage message and exits without a Python traceback. A missing or
-invalid configuration file prints a warning and continues with the
-documented defaults.
+`make run` uses that exact form. With no argument the game prints a
+warning and uses the built-in defaults. With more than one argument it
+prints a clear usage message and exits. A missing or invalid
+configuration file prints a warning and continues with the documented
+defaults.
 
 ### Other Makefile rules
 
@@ -246,10 +247,10 @@ database files are logged and the game continues with an empty
 leaderboard instead of crashing. The connection is closed when the
 application exits.
 
-The main menu shows the highest score and the current top five. The
-`VIEW HIGHSCORES` screen shows the full top ten with rank, score and
-name. After a game ends, the player can enter a name, save the score and
-is returned to the main menu with a confirmation message.
+The main menu shows the highest score and a `VIEW HIGHSCORES` entry.
+That screen shows the full top ten with rank, score and name. After a
+game ends, the player can enter a name, save the score and is returned
+to the main menu with a confirmation message.
 
 ## Maze Generation
 

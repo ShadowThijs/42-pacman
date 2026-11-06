@@ -59,7 +59,7 @@ Use this after `make run` or with the packaged build.
 14. Lose the last life. The game over screen should show the score and
     ask for a name.
 15. Enter a name and press Enter. The main menu should appear with a
-    saved-score message and the new entry in the top scores.
+    saved-score message.
 16. Open the highscores screen and check the full top ten.
 17. Quit the game, start it again and check that the score is still
     there.
@@ -71,7 +71,7 @@ Use this after `make run` or with the packaged build.
 
 | Change | Expected result |
 | --- | --- |
-| Run with no argument | Usage message, exit code 1 |
+| Run with no argument | Warning and built-in defaults, game starts |
 | Run with two arguments | Usage message, exit code 1 |
 | Pass a missing path | Warning and defaults, game starts |
 | Pass invalid JSON | Warning and defaults, game starts |
@@ -100,7 +100,6 @@ that no run printed a traceback.
 | No instructions screen | The main menu had no way to read the controls | Added `InstructionsScreen` and a menu entry |
 | Extra lives stopped at three | Pressing `4` at the start did nothing | Added one life per press up to the safe maximum |
 | Score flow | Saving a score opened the leaderboard instead of the main menu | `submit_score` and `skip_score` return to the main menu |
-| Main menu showed one score | The top scores were hidden behind a submenu | Added a top-five panel to the main menu |
 | Level time reset | The tuned 300-second default was changed back to 90 during a cleanup pass. 90 seconds is too short for a full maze, even with speed and invincibility | Changed the default back to 300 and updated the example config |
 | Boolean config values | `lives: true` was accepted as 1 | Reject bool before integer validation |
 | Database left open | The SQLite connection was only closed when the process ended | Added `Database.close` and call it on game exit and startup failure |
