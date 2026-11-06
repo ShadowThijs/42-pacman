@@ -173,7 +173,7 @@ def db_init(cfg: Config) -> Database:
         path.parent.mkdir(parents=True, exist_ok=True)
         db.connect_db(str(path))
         db.setup_db()
-    except (OSError, sq.Error) as exc:
+    except (OSError, ValueError, sq.Error) as exc:
         print(f"Could not open highscore database: {exc}")
         db.close()
     return db
