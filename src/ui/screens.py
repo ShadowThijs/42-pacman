@@ -72,11 +72,11 @@ MOVE_KEYS: dict[int, int] = {
     pg.K_d: Direction.East,
 }
 CHEAT_HINTS: tuple[tuple[str, int], ...] = (
-    ("1 Invincible", -145),
-    ("2 Speedhack", -25),
-    ("3 Ghost freeze", 95),
-    ("4 Add live", 215),
-    ("5 Skip level", 335),
+    ("1 Invincible", -135),
+    ("2 Speedhack", -15),
+    ("3 Ghost freeze", 105),
+    ("4 Add live", 225),
+    ("5 Skip level", 345),
 )
 INSTRUCTION_LINES: tuple[tuple[str, str], ...] = (
     ("MOVE WITH ARROW KEYS OR WASD", "body"),
