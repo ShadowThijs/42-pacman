@@ -4,7 +4,11 @@
 import sys
 
 
-datas = [("resources", "resources")]
+datas = [
+    ("resources", "resources"),
+    ("config.json", "."),
+    ("README.md", "."),
+]
 
 a = Analysis(
     ["pac-man.py"],

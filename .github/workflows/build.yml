@@ -23,11 +23,17 @@ jobs:
           - name: Linux x86_64
             os: ubuntu-22.04
             artifact: 42-pacman-linux
-            path: dist/42-pacman
+            path: |
+              dist/42-pacman
+              dist/config.json
+              dist/README.md
           - name: Windows x86_64
             os: windows-latest
             artifact: 42-pacman-windows
-            path: dist/42-pacman.exe
+            path: |
+              dist/42-pacman.exe
+              dist/config.json
+              dist/README.md
           - name: macOS
             os: macos-latest
             artifact: 42-pacman-macos
@@ -46,15 +52,24 @@ jobs:
         run: uv python install 3.13
 
       - name: Install dependencies
-        run: uv sync --frozen
+        run: uv sync --frozen --all-groups
 
       - name: Lint
         run: |
-          uv run --frozen python -m flake8 src pac-man.py
-          uv run --frozen mypy src pac-man.py --strict
+          uv run --frozen python -m flake8 .
+          uv run --frozen python -m mypy . --warn-return-any \
+            --warn-unused-ignores --ignore-missing-imports \
+            --disallow-untyped-defs --check-untyped-defs
+
+      - name: Run tests
+        run: uv run --frozen python -m pytest tests/ -q
 
       - name: Build executable
         run: uv run --frozen pyinstaller --clean --noconfirm 42-pacman.spec
+
+      - name: Add package documents
+        run: |
+          uv run --frozen python -c "import shutil; shutil.copy('config.json', 'dist/'); shutil.copy('README.md', 'dist/')"
 
       - name: Verify bundled resources
         if: runner.os == 'Linux'
@@ -79,9 +94,12 @@ jobs:
       - name: Create macOS disk image
         if: runner.os == 'macOS'
         run: |
+          mkdir -p dist/dmg
+          cp -R dist/42-pacman.app dist/dmg/
+          cp config.json README.md dist/dmg/
           hdiutil create \
             -volname "42 Pac-Man" \
-            -srcfolder dist/42-pacman.app \
+            -srcfolder dist/dmg \
             -ov \
             -format UDZO \
             42-pacman-macos.dmg
