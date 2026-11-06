@@ -61,6 +61,15 @@ Launch the game with exactly one argument, the configuration file:
 python3 pac-man.py config.json
 ```
 
+If you use the raw command instead of `make run`, activate the local
+environment first so the dependencies are available:
+
+```sh
+source .venv/bin/activate
+```
+
+On Windows, use `.venv\Scripts\activate` instead.
+
 `make run` uses that exact form. A missing or extra argument prints a
 clear usage message and exits without a Python traceback. A missing or
 invalid configuration file prints a warning and continues with the
