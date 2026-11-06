@@ -84,7 +84,7 @@ gantt
 
 ## Time spent
 
-The git history contains more than 75 commits. The project was
+The git history contains 83 commits. The project was
 developed in evenings and weekends. The longest gaps are visible in
 `progress_tracking.md` and are explained there. The final day was
 reserved for compliance, documentation and verification.
