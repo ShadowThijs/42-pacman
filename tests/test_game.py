@@ -28,6 +28,8 @@ def session(tmp_path: Path) -> Iterator[tuple[Game, App]]:
     config: Config = make_config(tmp_path)
     game, app = make_game(config)
     yield game, app
+    if game.db is not None:
+        game.db.close()
     game.quit()
     pygame.quit()
 
@@ -63,6 +65,8 @@ def _start(tmp_path: Path, **overrides: object) -> tuple[Game, App]:
 
 def _teardown(game: Game) -> None:
     """Release pygame resources for a manually built game."""
+    if game.db is not None:
+        game.db.close()
     game.quit()
     pygame.quit()
 
