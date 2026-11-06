@@ -117,7 +117,7 @@ package can be published as an unlisted itch.io project;
 | --- | --- | --- |
 | Menus | Up / Down or W / S | Move selection |
 | Menus | Enter / Space / mouse | Confirm |
-| Menus | Escape | Back or return to the main menu |
+| Menus | Escape | Back, resume, or return to the main menu where applicable |
 | Game | Arrow keys or WASD | Move Pac-Man |
 | Game | P or Escape | Pause and resume |
 | Game | Q | Quit the application |
@@ -144,8 +144,8 @@ Cheats are built for quick testing and demonstrations.
 | `5` | Skip the current level immediately. On the final level this wins the game. |
 
 The cheat hotkeys also activate cheat mode if it was not unlocked on the
-menu, so their state is always visible in the HUD. The Instructions
-screen lists the same keys.
+menu. The HUD lists the cheat keys while cheat mode is active, and the
+Instructions screen lists the same keys.
 
 ## Scoring
 

@@ -22,11 +22,11 @@ movement tests now protect this.
 
 ## Ghost work was split over two periods
 
-asylla wrote the ghost classes and targets in August and October, but
-the collision loop and the game integration were only finished later.
-The fix was to give the ghost files to asylla and keep the game loop
-changes small. We pair-programmed the collision, fright and freeze
-parts.
+tlogtenb wrote the early ghost skeleton in August. asylla wrote the
+ghost classes and targets in October, but the collision loop and the
+game integration were only finished later. The fix was to give the
+ghost files to asylla and keep the game loop changes small. We
+pair-programmed the collision, fright and freeze parts.
 
 ## Freeze changed what a ghost was
 

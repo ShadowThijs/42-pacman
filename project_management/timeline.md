@@ -44,8 +44,7 @@ gantt
     Freeze and rendering     :2026-11-02, 2d
     Timer and victory        :2026-11-03, 1d
     section Release
-    Tests and final fixes    :2026-11-04, 3d
-    Documentation            :2026-11-05, 2d
+    Fixes, tests and docs    :2026-11-06, 1d
 ```
 
 ## How the plan changed
