@@ -78,7 +78,7 @@ class Config:
         "pp_super_pacgum": 50,
         "pp_ghost": 200,
         "seed": 42,
-        "level_max_time": 90,
+        "level_max_time": 300,
         "max_levels": 10,
     }
 
@@ -90,9 +90,7 @@ class Config:
         if cfg_json == "":
             print("No config file provided, using defaults")
         elif not Path(cfg_json).is_file():
-            print(
-                f"Config file not found: {cfg_json}, using defaults"
-            )
+            print(f"Config file not found: {cfg_json}, using defaults")
         else:
             try:
                 with open(cfg_json) as f:
@@ -103,8 +101,7 @@ class Config:
                 loaded = True
             except (OSError, ValueError) as exc:
                 print(
-                    f"Could not read config {cfg_json}: {exc}; "
-                    "using defaults"
+                    f"Could not read config {cfg_json}: {exc}; using defaults"
                 )
 
         for key, default in self.DEFAULTS.items():
@@ -114,13 +111,8 @@ class Config:
             elif loaded and not isinstance(value, type(default)):
                 print(f"Invalid type for '{key}', using default: {default!r}")
                 value = default
-            elif (
-                key in ("level_max_time", "max_levels")
-                and value < 1
-            ):
-                print(
-                    f"Invalid value for '{key}', using default: {default!r}"
-                )
+            elif key in ("level_max_time", "max_levels") and value < 1:
+                print(f"Invalid value for '{key}', using default: {default!r}")
                 value = default
             setattr(self, key, value)
 

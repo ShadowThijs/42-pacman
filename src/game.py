@@ -23,7 +23,7 @@ from .sprites import Sprites
 from .state import StateManager
 
 PACMAN_SPEED: int = 85
-SPEEDHACK_SPEED: int = 190
+SPEEDHACK_SPEED: int = PACMAN_SPEED * 3
 SUPERGUM_RADIUS: int = 8
 SUPERGUM_PHASE_MS: float = 150.0
 PACGUM_RADIUS: int = 4
@@ -89,9 +89,7 @@ class Game:
         pygame.init()
         flags: int = pygame.SCALED | pygame.RESIZABLE
         try:
-            self.screen = pygame.display.set_mode(
-                (width, height), flags
-            )
+            self.screen = pygame.display.set_mode((width, height), flags)
         except pygame.error:
             self.screen = pygame.display.set_mode(
                 (width, height), pygame.RESIZABLE
@@ -264,13 +262,9 @@ class Game:
         exclude: set[tuple[int, int]] | None = None,
     ) -> set[tuple[int, int]]:
         """Return the configured number of pacgum locations."""
-        blocked: set[tuple[int, int]] = (
-            set() if exclude is None else exclude
-        )
+        blocked: set[tuple[int, int]] = set() if exclude is None else exclude
         eligible: list[tuple[int, int]] = [
-            tile
-            for tile in self._walkable_tiles(maze)
-            if tile not in blocked
+            tile for tile in self._walkable_tiles(maze) if tile not in blocked
         ]
         count: int = max(0, min(self.config.pacgum, len(eligible)))
         return set(random.sample(eligible, count))
@@ -288,14 +282,8 @@ class Game:
         pac_tile: tuple[int, int] = (self.pac.row, self.pac.col)
         locations: list[tuple[int, int]] = []
         for corner in corners:
-            tile: tuple[int, int] | None = self._nearest_walkable(
-                maze, corner
-            )
-            if (
-                tile is not None
-                and tile != pac_tile
-                and tile not in locations
-            ):
+            tile: tuple[int, int] | None = self._nearest_walkable(maze, corner)
+            if tile is not None and tile != pac_tile and tile not in locations:
                 locations.append(tile)
         return locations
 
@@ -378,8 +366,7 @@ class Game:
         self.spawn_timer += dt
         frozen: bool = self.cheats.ghostfreeze()
         while (
-            self.to_spawn
-            and self.spawn_timer >= self.to_spawn[0].release_delay
+            self.to_spawn and self.spawn_timer >= self.to_spawn[0].release_delay
         ):
             ghost: Ghost = self.to_spawn.pop(0)
             if frozen:
@@ -397,9 +384,7 @@ class Game:
                 self._time_up()
                 return
 
-        eaten: int = self.pac.update(
-            dt, self.current_maze.maze, self.pacgums
-        )
+        eaten: int = self.pac.update(dt, self.current_maze.maze, self.pacgums)
         self.score += eaten * self.config.pp_pacgum
 
         pac_tile: tuple[int, int] = (self.pac.row, self.pac.col)
