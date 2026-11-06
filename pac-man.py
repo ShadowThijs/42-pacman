@@ -23,9 +23,10 @@ def _packaged_config() -> str:
 def config_file(argv: list[str]) -> str | None:
     """Return the config path, or ``None`` when the CLI usage is wrong.
 
-    A source checkout must receive exactly one argument.  A packaged
-    build accepts zero arguments and looks beside the executable (or in
-    the PyInstaller bundle) so it can be launched with a double click.
+    One argument is the normal case.  With no argument the game falls
+    back to the built-in defaults and ``Config`` prints a warning.  A
+    packaged build also looks beside the executable (or in the
+    PyInstaller bundle) so it can be launched with a double click.
     """
     frozen: bool = bool(getattr(sys, "frozen", False))
     args: list[str] = argv[1:]
@@ -48,9 +49,9 @@ def config_file(argv: list[str]) -> str | None:
         return _packaged_config()
 
     if not args:
-        print("Error: missing configuration file.")
-    else:
-        print("Error: too many arguments.")
+        return ""
+
+    print("Error: too many arguments.")
     print(USAGE)
     return None
 

@@ -166,25 +166,37 @@ class Config:
     def _read(cfg_json: str) -> tuple[dict[str, Any], bool]:
         """Read and parse ``cfg_json``, reporting every failure clearly."""
         if cfg_json == "":
-            print("No config file provided, using built-in defaults")
+            print(
+                "Warning: no config file provided; using built-in defaults",
+                flush=True,
+            )
             return {}, False
 
         path: Path = Path(cfg_json)
         if not path.is_file():
-            print(f"Config file not found: {cfg_json}; using defaults")
+            print(
+                f"Warning: config file not found: {cfg_json}; "
+                "using built-in defaults",
+                flush=True,
+            )
             return {}, False
 
         try:
             with open(path, encoding="utf-8-sig") as handle:
                 parsed: Any = json.loads(clean_json(handle.read()))
         except (OSError, ValueError) as exc:
-            print(f"Could not read config {cfg_json}: {exc}; using defaults")
+            print(
+                f"Warning: could not read config {cfg_json}: {exc}; "
+                "using built-in defaults",
+                flush=True,
+            )
             return {}, False
 
         if not isinstance(parsed, dict):
             print(
-                f"Invalid config {cfg_json}: root must be a JSON object; "
-                "using defaults"
+                f"Warning: invalid config {cfg_json}: root must be a "
+                "JSON object; using built-in defaults",
+                flush=True,
             )
             return {}, False
         return {str(key): value for key, value in parsed.items()}, True
