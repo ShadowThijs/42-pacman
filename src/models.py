@@ -15,6 +15,31 @@ ANIMATION_FRAME_TIME: float = 0.2
 MAX_NAME_LENGTH: int = 10
 ALLOWED_NAME_CHARS: str = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 "
 
+DEFAULT_HIGHSCORE_DB: str = "database.db"
+DEFAULT_LEVEL: int = 1
+DEFAULT_WIDTH: int = 20
+DEFAULT_HEIGHT: int = 20
+DEFAULT_LIVES: int = 3
+DEFAULT_PACGUM: int = 42
+DEFAULT_POINTS_PER_PACGUM: int = 10
+DEFAULT_POINTS_PER_SUPER_PACGUM: int = 50
+DEFAULT_POINTS_PER_GHOST: int = 200
+DEFAULT_SEED: int = 42
+DEFAULT_LEVEL_MAX_TIME: int = 90
+DEFAULT_MAX_LEVELS: int = 10
+
+MIN_MAZE_SIZE: int = 5
+MAX_MAZE_SIZE: int = 50
+MIN_LIVES: int = 1
+MAX_LIVES: int = 99
+MIN_LEVEL_MAX_TIME: int = 1
+MAX_LEVEL_MAX_TIME: int = 3600
+MAX_LEVELS_LIMIT: int = 100
+MAX_POINTS: int = 1_000_000
+MAX_PACGUM: int = 1_000_000
+MIN_SEED: int = 1
+MAX_SEED: int = 2_147_483_647
+
 
 def clean_json(text: str) -> str:
     """Strip #, // and /* */ comments from JSON text."""
@@ -51,7 +76,8 @@ def sanitize_name(name: str) -> str:
 class Config:
     """Config class.
 
-    Holds all config file values.
+    Holds all config file values.  Values are validated and clamped so a
+    malformed file never stops the game from starting.
     """
 
     highscore_db: str
@@ -68,53 +94,127 @@ class Config:
     max_levels: int
 
     DEFAULTS: ClassVar[dict[str, Any]] = {
-        "highscore_db": "database.db",
-        "level": 1,
-        "width": 20,
-        "height": 20,
-        "lives": 3,
-        "pacgum": 42,
-        "pp_pacgum": 10,
-        "pp_super_pacgum": 50,
-        "pp_ghost": 200,
-        "seed": 42,
-        "level_max_time": 300,
-        "max_levels": 10,
+        "highscore_db": DEFAULT_HIGHSCORE_DB,
+        "level": DEFAULT_LEVEL,
+        "width": DEFAULT_WIDTH,
+        "height": DEFAULT_HEIGHT,
+        "lives": DEFAULT_LIVES,
+        "pacgum": DEFAULT_PACGUM,
+        "pp_pacgum": DEFAULT_POINTS_PER_PACGUM,
+        "pp_super_pacgum": DEFAULT_POINTS_PER_SUPER_PACGUM,
+        "pp_ghost": DEFAULT_POINTS_PER_GHOST,
+        "seed": DEFAULT_SEED,
+        "level_max_time": DEFAULT_LEVEL_MAX_TIME,
+        "max_levels": DEFAULT_MAX_LEVELS,
+    }
+    LIMITS: ClassVar[dict[str, tuple[int, int]]] = {
+        "level": (1, MAX_LEVELS_LIMIT),
+        "width": (MIN_MAZE_SIZE, MAX_MAZE_SIZE),
+        "height": (MIN_MAZE_SIZE, MAX_MAZE_SIZE),
+        "lives": (MIN_LIVES, MAX_LIVES),
+        "pacgum": (0, MAX_PACGUM),
+        "pp_pacgum": (0, MAX_POINTS),
+        "pp_super_pacgum": (0, MAX_POINTS),
+        "pp_ghost": (0, MAX_POINTS),
+        "seed": (MIN_SEED, MAX_SEED),
+        "level_max_time": (MIN_LEVEL_MAX_TIME, MAX_LEVEL_MAX_TIME),
+        "max_levels": (1, MAX_LEVELS_LIMIT),
     }
 
     def __init__(self, cfg_json: str) -> None:
         """Init Config."""
-        data: dict[str, Any] = {}
-        loaded: bool = False
+        data, loaded = self._read(cfg_json)
 
-        if cfg_json == "":
-            print("No config file provided, using defaults")
-        elif not Path(cfg_json).is_file():
-            print(f"Config file not found: {cfg_json}, using defaults")
-        else:
-            try:
-                with open(cfg_json) as f:
-                    parsed = json.loads(clean_json(f.read()))
-                if not isinstance(parsed, dict):
-                    raise ValueError("config root must be a JSON object")
-                data = parsed
-                loaded = True
-            except (OSError, ValueError) as exc:
-                print(
-                    f"Could not read config {cfg_json}: {exc}; using defaults"
-                )
+        for key in sorted(set(data) - set(self.DEFAULTS)):
+            print(f"Ignoring unknown config key: {key!r}")
 
+        values: dict[str, Any] = {}
         for key, default in self.DEFAULTS.items():
-            value = data.get(key, default)
-            if loaded and key not in data:
-                print(f"Missing '{key}' in config, using default: {default!r}")
-            elif loaded and not isinstance(value, type(default)):
-                print(f"Invalid type for '{key}', using default: {default!r}")
-                value = default
-            elif key in ("level_max_time", "max_levels") and value < 1:
-                print(f"Invalid value for '{key}', using default: {default!r}")
-                value = default
-            setattr(self, key, value)
+            if key not in data:
+                if loaded:
+                    print(
+                        f"Missing '{key}' in config, "
+                        f"using default: {default!r}"
+                    )
+                values[key] = default
+                continue
+            values[key] = self._validated(key, data[key], default)
+
+        max_levels: int = int(values["max_levels"])
+        level: int = int(values["level"])
+        if level > max_levels:
+            print(
+                f"Clamped 'level' from {level} to {max_levels} "
+                "(cannot exceed 'max_levels')"
+            )
+            level = max_levels
+
+        self.highscore_db = str(values["highscore_db"])
+        self.level = level
+        self.width = int(values["width"])
+        self.height = int(values["height"])
+        self.lives = int(values["lives"])
+        self.pacgum = int(values["pacgum"])
+        self.pp_pacgum = int(values["pp_pacgum"])
+        self.pp_super_pacgum = int(values["pp_super_pacgum"])
+        self.pp_ghost = int(values["pp_ghost"])
+        self.seed = int(values["seed"])
+        self.level_max_time = int(values["level_max_time"])
+        self.max_levels = max_levels
+
+    @staticmethod
+    def _read(cfg_json: str) -> tuple[dict[str, Any], bool]:
+        """Read and parse ``cfg_json``, reporting every failure clearly."""
+        if cfg_json == "":
+            print("No config file provided, using built-in defaults")
+            return {}, False
+
+        path: Path = Path(cfg_json)
+        if not path.is_file():
+            print(f"Config file not found: {cfg_json}; using defaults")
+            return {}, False
+
+        try:
+            with open(path, encoding="utf-8-sig") as handle:
+                parsed: Any = json.loads(clean_json(handle.read()))
+        except (OSError, ValueError) as exc:
+            print(f"Could not read config {cfg_json}: {exc}; using defaults")
+            return {}, False
+
+        if not isinstance(parsed, dict):
+            print(
+                f"Invalid config {cfg_json}: root must be a JSON object; "
+                "using defaults"
+            )
+            return {}, False
+        return {str(key): value for key, value in parsed.items()}, True
+
+    @classmethod
+    def _validated(cls, key: str, value: Any, default: Any) -> Any:
+        """Return a safe value for ``key``, or ``default`` if unusable."""
+        if key == "highscore_db":
+            if not isinstance(value, str) or not value.strip():
+                print(
+                    f"Invalid value for '{key}', using default: {default!r}"
+                )
+                return default
+            return value.strip()
+
+        if isinstance(value, bool) or not isinstance(value, int):
+            print(f"Invalid type for '{key}', using default: {default!r}")
+            return default
+
+        limits: tuple[int, int] | None = cls.LIMITS.get(key)
+        if limits is not None:
+            low, high = limits
+            if not low <= value <= high:
+                clamped: int = max(low, min(high, value))
+                print(
+                    f"Invalid value for '{key}': {value!r}; "
+                    f"clamped to {clamped}"
+                )
+                return clamped
+        return value
 
 
 class Colors:

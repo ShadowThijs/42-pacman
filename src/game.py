@@ -13,10 +13,12 @@ from .ghost import Ghost, GhostState, spawn_ghosts
 from .models import (
     CELL_SIZE,
     OFFSET,
+    VECTORS,
     WALL_THICKNESS,
     Colors,
     Config,
     Direction,
+    can_move,
 )
 from .player import PacMan
 from .sprites import Sprites
@@ -42,12 +44,15 @@ class Game:
         self.height: int
         self.screen: pygame.Surface
         self.clock: pygame.time.Clock
-        self.start_level: bool
         self.base_seed: int
         self.current_maze: MazeGenerator
         self.config: Config
         self.pacgums: set[tuple[int, int]]
         self.supergums: list[tuple[int, int]]
+        self.player_spawn: tuple[int, int]
+        self.level_error: str | None
+        self._level_rng: random.Random
+        self._reachable: set[tuple[int, int]]
         self.pac: PacMan
         self.sprites: Sprites
         self.score: int = 0
@@ -77,9 +82,12 @@ class Game:
         self.base_seed = cfg.seed
         self.db = db
         self.running = True
-        self.start_level = False
         self.game_over = False
         self.victory = False
+        self.level_error = None
+        self.player_spawn = (0, 0)
+        self._level_rng = random.Random(cfg.seed)
+        self._reachable = set()
         self.level_time_left = 0.0
         self.score = 0
         self.level = 1
@@ -99,37 +107,81 @@ class Game:
         self.sprites = Sprites()
         self.states = StateManager(self)
 
-    def start_new_game(self) -> None:
-        """Reset score, level and lives, then build a fresh maze."""
+    def start_new_game(self) -> bool:
+        """Reset score, level and lives, then build a fresh maze.
+
+        The configured ``level`` value is used as the first level of the
+        session.  Returns ``False`` when the maze generator fails.
+        """
         self.score = 0
-        self.level = 1
+        self.level = max(
+            1, min(self.config.level, self.config.max_levels)
+        )
         self.game_over = False
         self.victory = False
-        self.start_level = False
-        self.new_level(self.config)
-        self.start_level = True
+        self.level_error = None
+        return self.new_level(self.config, seeded=True)
 
     def reset_death(self) -> None:
         """Respawn Pac-Man and reset the ghosts after a death."""
-        x, y = self._player_spawn()
+        x, y = self._tile_center(*self.player_spawn)
         self.pac.respawn(x, y)
         self._reset_ghosts()
 
-    def _player_spawn(self) -> tuple[float, float]:
-        """Return the pixel position where Pac-Man starts a level."""
+    @staticmethod
+    def _tile_center(row: int, col: int) -> tuple[float, float]:
+        """Return the pixel centre of a maze tile."""
         ox, oy = OFFSET
-        sr, sc = next(
-            (r, c)
-            for r, row in enumerate(self.current_maze.maze)
-            for c, v in enumerate(row)
-            if v != Direction.All
-            and r > self.config.height / 2 + 1
-            and c > self.config.width / 2 - 2
-        )
         return (
-            ox + sc * CELL_SIZE + CELL_SIZE / 2,
-            oy + sr * CELL_SIZE + CELL_SIZE / 2,
+            ox + col * CELL_SIZE + CELL_SIZE / 2,
+            oy + row * CELL_SIZE + CELL_SIZE / 2,
         )
+
+    def _select_spawn_tile(self) -> tuple[int, int] | None:
+        """Return the walkable tile nearest to the maze centre."""
+        rows: int = len(self.current_maze.maze)
+        if rows == 0 or not self.current_maze.maze[0]:
+            return None
+        cols: int = len(self.current_maze.maze[0])
+        center: tuple[int, int] = (rows // 2, cols // 2)
+        tile: tuple[int, int] | None = self._nearest_walkable(
+            self.current_maze, center
+        )
+        if tile is not None:
+            return tile
+        walkable: list[tuple[int, int]] = self._walkable_tiles(
+            self.current_maze
+        )
+        return walkable[0] if walkable else None
+
+    def _reachable_from(self, start: tuple[int, int]) -> set[tuple[int, int]]:
+        """Return every tile reachable from ``start`` through corridors."""
+        maze: list[list[int]] = self.current_maze.maze
+        rows: int = len(maze)
+        cols: int = len(maze[0]) if rows else 0
+        if not (0 <= start[0] < rows and 0 <= start[1] < cols):
+            return set()
+        seen: set[tuple[int, int]] = {start}
+        queue: deque[tuple[int, int]] = deque([start])
+        while queue:
+            row, col = queue.popleft()
+            for direction in (
+                Direction.North,
+                Direction.East,
+                Direction.South,
+                Direction.West,
+            ):
+                if not can_move(maze, row, col, direction):
+                    continue
+                dc, dr = VECTORS[direction]
+                nr, nc = row + dr, col + dc
+                if not (0 <= nr < rows and 0 <= nc < cols):
+                    continue
+                if (nr, nc) in seen:
+                    continue
+                seen.add((nr, nc))
+                queue.append((nr, nc))
+        return seen
 
     def _reset_ghosts(self) -> None:
         """Queue a fresh set of ghosts, released after the next input."""
@@ -142,33 +194,66 @@ class Game:
         self,
         cfg: Config,
         lives: int | None = None,
-    ) -> None:
-        """Create a new level; pass ``lives`` to carry them over."""
+        seeded: bool = False,
+    ) -> bool:
+        """Create a new level; pass ``lives`` to carry them over.
+
+        ``seeded`` selects the fixed config seed (first level of a
+        session); otherwise a fresh random seed is drawn.  Returns
+        ``False`` when the assigned generator cannot build the maze.
+        """
         seed: int = (
-            random.randint(0, 2_147_483_648)
-            if self.start_level
-            else self.base_seed
+            self.base_seed
+            if seeded
+            else random.SystemRandom().randint(1, 2_147_483_647)
         )
-        self.current_maze = MazeGenerator(
-            (cfg.width, cfg.height), False, seed=seed
-        )
-        x, y = self._player_spawn()
+        try:
+            maze: MazeGenerator = MazeGenerator(
+                (cfg.width, cfg.height), False, seed=seed
+            )
+        except Exception as exc:
+            self.level_error = f"Could not generate a maze: {exc}"
+            print(f"Error: {self.level_error}")
+            return False
+        if not maze.maze or not maze.maze[0]:
+            self.level_error = "The maze generator returned an empty maze."
+            print(f"Error: {self.level_error}")
+            return False
+
+        self.current_maze = maze
+        self._level_rng = random.Random(seed)
+        spawn: tuple[int, int] | None = self._select_spawn_tile()
+        if spawn is None:
+            self.level_error = "The generated maze has no walkable tile."
+            print(f"Error: {self.level_error}")
+            return False
+        self.player_spawn = spawn
+        x, y = self._tile_center(*spawn)
         self.pac = PacMan(
             x,
             y,
             lives=cfg.lives if lives is None else lives,
         )
+        self._reachable = self._reachable_from(spawn)
+        if not self._reachable:
+            self.level_error = "The generated maze has no reachable corridor."
+            print(f"Error: {self.level_error}")
+            return False
         self._reset_pellets()
         self.level_time_left = float(cfg.level_max_time)
         self._maze_layer = self._build_maze_layer()
         self._reset_ghosts()
+        self.level_error = None
+        return True
 
     def _reset_pellets(self) -> None:
         """Refill every pellet, including the four corner power pellets."""
         self.supergums = self.supergums_location(self.current_maze)
+        blocked: set[tuple[int, int]] = set(self.supergums)
+        blocked.add(self.player_spawn)
         self.pacgums = self.pacgum_locations(
             self.current_maze,
-            exclude=set(self.supergums),
+            exclude=blocked,
         )
 
     def _build_maze_layer(self) -> pygame.Surface:
@@ -261,13 +346,18 @@ class Game:
         maze: MazeGenerator,
         exclude: set[tuple[int, int]] | None = None,
     ) -> set[tuple[int, int]]:
-        """Return the configured number of pacgum locations."""
+        """Return the configured number of reachable pacgum locations."""
         blocked: set[tuple[int, int]] = set() if exclude is None else exclude
-        eligible: list[tuple[int, int]] = [
-            tile for tile in self._walkable_tiles(maze) if tile not in blocked
-        ]
+        pool: set[tuple[int, int]] = (
+            self._reachable
+            if self._reachable
+            else set(self._walkable_tiles(maze))
+        )
+        eligible: list[tuple[int, int]] = sorted(
+            tile for tile in pool if tile not in blocked
+        )
         count: int = max(0, min(self.config.pacgum, len(eligible)))
-        return set(random.sample(eligible, count))
+        return set(self._level_rng.sample(eligible, count))
 
     def supergums_location(self, maze: MazeGenerator) -> list[tuple[int, int]]:
         """Return one walkable tile at each of the maze's four corners."""
@@ -279,10 +369,15 @@ class Game:
             (height - 1, width - 1),
             (height - 1, 0),
         )
-        pac_tile: tuple[int, int] = (self.pac.row, self.pac.col)
+        pac_tile: tuple[int, int] = self.player_spawn
+        allowed: set[tuple[int, int]] | None = (
+            self._reachable if self._reachable else None
+        )
         locations: list[tuple[int, int]] = []
         for corner in corners:
-            tile: tuple[int, int] | None = self._nearest_walkable(maze, corner)
+            tile: tuple[int, int] | None = self._nearest_walkable(
+                maze, corner, allowed
+            )
             if tile is not None and tile != pac_tile and tile not in locations:
                 locations.append(tile)
         return locations
@@ -291,15 +386,21 @@ class Game:
     def _nearest_walkable(
         maze: MazeGenerator,
         start: tuple[int, int],
+        allowed: set[tuple[int, int]] | None = None,
     ) -> tuple[int, int] | None:
         """Return the closest walkable tile to ``start``, or ``None``."""
         height: int = len(maze.maze)
-        width: int = len(maze.maze[0])
+        width: int = len(maze.maze[0]) if height else 0
+        if not (0 <= start[0] < height and 0 <= start[1] < width):
+            return None
         seen: set[tuple[int, int]] = {start}
         queue: deque[tuple[int, int]] = deque([start])
         while queue:
             row, col = queue.popleft()
-            if maze.maze[row][col] != Direction.All:
+            if (
+                maze.maze[row][col] != Direction.All
+                and (allowed is None or (row, col) in allowed)
+            ):
                 return (row, col)
             for dr, dc in ((-1, 0), (1, 0), (0, -1), (0, 1)):
                 nr, nc = row + dr, col + dc
@@ -317,7 +418,7 @@ class Game:
 
     def die(self) -> None:
         """Pac-Man was caught by a ghost."""
-        self.pac.lives -= 1
+        self.pac.lives = max(0, self.pac.lives - 1)
         if self.pac.lives <= 0:
             self.game_over = True
             return
@@ -326,19 +427,21 @@ class Game:
     def _time_up(self) -> None:
         """Lose a life and restart the current level when time runs out."""
         self.level_time_left = float(self.config.level_max_time)
+        if self.cheats.invincible():
+            return
         self.die()
         if not self.game_over:
             self._reset_pellets()
 
-    def complete_level(self) -> None:
+    def complete_level(self) -> bool:
         """Advance to the next level, or win after the final one."""
         if self.game_over or self.victory:
-            return
+            return False
         if self.level >= self.config.max_levels:
             self.victory = True
-            return
+            return True
         self.level += 1
-        self.new_level(self.config, lives=self.pac.lives)
+        return self.new_level(self.config, lives=self.pac.lives)
 
     def queue_direction(self, direction: int) -> None:
         """Queue a direction and arm the ghost release schedule."""
@@ -365,8 +468,8 @@ class Game:
             return
         self.spawn_timer += dt
         frozen: bool = self.cheats.ghostfreeze()
-        while (
-            self.to_spawn and self.spawn_timer >= self.to_spawn[0].release_delay
+        while self.to_spawn and (
+            self.spawn_timer >= self.to_spawn[0].release_delay
         ):
             ghost: Ghost = self.to_spawn.pop(0)
             if frozen:
@@ -375,7 +478,7 @@ class Game:
 
     def update(self, dt: float) -> None:
         """Advance one gameplay frame."""
-        if self.game_over or self.victory:
+        if self.game_over or self.victory or self.level_error:
             return
 
         if self.first_input:
@@ -396,7 +499,7 @@ class Game:
 
         self.release_ghosts(dt)
 
-        invincible: bool = self.cheats.invicible()
+        invincible: bool = self.cheats.invincible()
         blinky: Ghost | None = self.ghosts[0] if self.ghosts else None
         for ghost in self.ghosts:
             ghost.update(dt, self.pac, blinky)
@@ -415,7 +518,7 @@ class Game:
                 self.die()
                 break
 
-        if not self.game_over and not self.pacgums:
+        if not self.game_over and not self.pacgums and not self.supergums:
             self.complete_level()
 
     def _touches_pac(self, ghost: Ghost) -> bool:
@@ -451,12 +554,13 @@ class Game:
             return 0
         return entries[0][1]
 
-    def record_score(self, name: str, score: int | None = None) -> None:
-        """Store the current score in the database, if one is attached."""
-        if self.db is not None:
-            self.db.add_leaderboard_entry(
-                name, self.score if score is None else score
-            )
+    def record_score(self, name: str, score: int | None = None) -> bool:
+        """Store the current score, returning whether it was persisted."""
+        if self.db is None:
+            return False
+        return self.db.add_leaderboard_entry(
+            name, self.score if score is None else score
+        )
 
     def run(self) -> None:
         """Run the state-driven main loop."""
@@ -479,4 +583,6 @@ class Game:
                 self.states.draw(self.screen)
                 pygame.display.flip()
         finally:
+            if self.db is not None:
+                self.db.close()
             pygame.quit()

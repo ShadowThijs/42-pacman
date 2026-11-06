@@ -24,7 +24,7 @@ class Cheats:
         self._enabled = True
         return newly_activated
 
-    def invicible(self, change: bool | None = None) -> bool:
+    def invincible(self, change: bool | None = None) -> bool:
         """Change or retrieve cheat."""
         if change not in (None, self._invincible):
             self._invincible = change
