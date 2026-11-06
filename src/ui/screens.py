@@ -259,7 +259,6 @@ class StartMenuScreen(MenuScreen):
         self._konami_progress: int = 0
         self._flicker_remaining: float = 0.0
         self._high_score: int = game.best_score()
-        self._top_scores: list[tuple[str, int]] = game.leaderboard(5)
         self._pac: pg.Surface = pg.transform.smoothscale(
             game.sprites.pacman(Direction.East, 1), (48, 48)
         )
@@ -371,7 +370,6 @@ class StartMenuScreen(MenuScreen):
                 Colors.lime,
                 center=(center, 252),
             )
-        self._draw_top_scores(screen)
 
         baseline: int = screen.get_height() - 150
         pac_x: int = center - 190 + int(math.sin(self._elapsed * 1.4) * 6)
@@ -391,45 +389,6 @@ class StartMenuScreen(MenuScreen):
                 Colors.lime,
                 topleft=(20, 20),
             )
-
-    def _draw_top_scores(self, screen: pg.Surface) -> None:
-        """Show the leading scores directly in the main menu."""
-        if screen.get_width() < 760:
-            return
-        left: int = 36
-        top: int = 300
-        self.theme.draw_text(
-            screen,
-            "TOP SCORES",
-            self.theme.small_font,
-            self.theme.text_dim,
-            topleft=(left, top),
-        )
-        if not self._top_scores:
-            self.theme.draw_text(
-                screen,
-                "NO SCORES YET",
-                self.theme.small_font,
-                self.theme.text_muted,
-                topleft=(left, top + 26),
-            )
-            return
-        row_y: int = top + 26
-        for index, (name, score) in enumerate(self._top_scores):
-            color: tuple[int, int, int] = (
-                Colors.yellow if index == 0 else Colors.white
-            )
-            line: str = (
-                f"{index + 1} {_safe_name(name)} {score:06d}"
-            )
-            self.theme.draw_text(
-                screen,
-                line,
-                self.theme.tiny_font,
-                color,
-                topleft=(left, row_y),
-            )
-            row_y += 22
 
 
 class InstructionsScreen(State):
