@@ -14,7 +14,7 @@ make test
 ```
 
 Expected result: flake8 reports nothing, mypy reports no issues, and all
-37 tests pass.
+38 tests pass.
 
 The tests force SDL's dummy video and audio drivers, so they run without
 a desktop session. They create temporary config and SQLite files and do
@@ -49,6 +49,7 @@ not touch the repository database.
 | `test_player_moves_through_open_corridor` | Movement through corridors |
 | `test_eating_supergum_increases_score` | Power pellet scoring |
 | `test_frightened_ghost_becomes_edible` | Frightened state and expiry |
+| `test_frightened_ghost_flees_to_far_corner` | Frightened ghosts move away from Pac-Man |
 | `test_eating_frightened_ghost_scores` | Eating an edible ghost |
 | `test_eaten_ghost_respawns` | Eyes return and ghost resumes chasing |
 | `test_level_advance_keeps_score_and_lives` | Score and lives carry between levels |
@@ -185,7 +186,7 @@ not touch the repository database.
 | Requirement | Evidence | Status |
 | --- | --- | --- |
 | Autonomously chase | BFS chase logic in `ghost.py`, manual play | Pass |
-| Flee when edible | Frightened state targets the home corner, manual play | Pass |
+| Flee when edible | Frightened state targets the corner farthest from Pac-Man, manual play | Pass |
 | Can be eaten | `test_eating_frightened_ghost_scores` | Pass |
 | Respawn after a while | `test_eaten_ghost_respawns`, five-second delay | Pass |
 
@@ -355,7 +356,7 @@ Use this script during a review.
 | Extra-life cheat capped at 3 | Pressing `4` at the start did nothing | Add a life up to the safe maximum, repeatable | `test_cheat_keys_enable_and_apply` |
 | Score saved then leaderboard shown | Required loop ends at the main menu | `submit_score` and `skip_score` return to the main menu | `test_submitting_score_returns_to_main_menu` |
 | Main menu did not list scores | Only the single best score was visible | Top-five panel and highscores view | `test_ui_screens_render` |
-| `level_max_time` default was 300 | Did not match the documented default of 90 | Default is 90 | Config defaults test |
+| `level_max_time` was briefly 90 | Full clears were impractical at the game's movement speed | Restored the 300-second default after playtesting | Config defaults test and manual timing |
 | Boolean accepted as an integer | `lives: true` was treated as 1 | Reject bool before integer validation | `test_config_invalid_types_and_values_are_safe` |
 | Database connection never closed | Resource left open until process exit | `Database.close`, called from `Game.run` | Database tests |
 | Corrupt database printed the exception class | Unhelpful message | Catch and print the actual error, disable storage | `test_database_handles_corrupt_file` |

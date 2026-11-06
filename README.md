@@ -27,7 +27,7 @@ AI, scoring and progression.
 - Four ghosts with classic-inspired targets: Blinky chases directly,
   Pinky aims ahead of Pac-Man, Inky uses Blinky as a pivot, and Clyde
   retreats when he gets too close.
-- Frightened ghosts flee to their corners, slow down, and can be eaten.
+- Frightened ghosts flee away from Pac-Man, slow down, and can be eaten.
 - Eaten ghosts return to their corner as eyes and respawn after five
   seconds.
 - Persistent SQLite highscores with a strict top-ten limit.
@@ -174,7 +174,7 @@ game keeps running.
 | `pp_super_pacgum` | integer | `50` | `0` to `1000000` | Points per power pellet. |
 | `pp_ghost` | integer | `200` | `0` to `1000000` | Points per eaten ghost. |
 | `seed` | integer | `42` | `1` to `2147483647` | Fixed seed for the first level of every new game. Later levels use fresh random seeds. |
-| `level_max_time` | integer | `90` | `1` to `3600` | Time limit per level in seconds. |
+| `level_max_time` | integer | `300` | `1` to `3600` | Time limit per level in seconds. |
 | `max_levels` | integer | `10` | `1` to `100` | Number of levels in a full game. The default game has ten. |
 
 Example:
@@ -186,7 +186,7 @@ Example:
   "level": 1,
   "lives": 3,
   "seed": 42,
-  "level_max_time": 90,
+  "level_max_time": 300,
   "max_levels": 10,
 
   // Maze size
@@ -296,11 +296,12 @@ target, and Clyde targets Pac-Man unless he is within eight tiles, in
 which case he retreats to his corner. The search also forbids blind
 U-turns unless the ghost is frightened or returning as eyes.
 
-Frightened ghosts target their own corner, move at 60 percent speed, and
-flash near the end of the seven-second fright timer. Eaten ghosts switch
-to eyes, path back to their corner at double speed, wait five seconds,
-and resume chasing. A frozen ghost keeps its underlying state, which is
-why freezing a frightened ghost does not make it harmless forever.
+Frightened ghosts target the corner farthest from Pac-Man, move at 60
+percent speed, and flash near the end of the seven-second fright timer.
+Eaten ghosts switch to eyes, path back to their corner at double speed,
+wait five seconds, and resume chasing. A frozen ghost keeps its
+underlying state, which is why freezing a frightened ghost does not make
+it harmless forever.
 
 Rendering is split into a pre-rendered maze layer, a pellet layer drawn
 each frame, and sprite actors. The maze layer is rebuilt only when the
@@ -396,7 +397,7 @@ Run it with:
 make test
 ```
 
-At the time of writing, all 37 tests pass. `make lint` and
+The suite currently contains 38 tests, all passing. `make lint` and
 `make lint-strict` also pass with no flake8 or mypy errors.
 
 ## Project Management

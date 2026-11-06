@@ -85,7 +85,7 @@ integration points are:
 | --- | --- |
 | `make lint` | Pass, no flake8 or mypy errors |
 | `make lint-strict` | Pass, no mypy strict errors |
-| `make test` | 37 tests pass |
+| `make test` | 38 tests pass |
 | Headless UI smoke test | Pass |
 | Invalid config scenarios | Pass, defaults and clamps logged |
 | Packaged executable smoke test | Pass |

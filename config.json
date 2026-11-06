@@ -14,6 +14,6 @@
   "pp_super_pacgum": 50,
   "pp_ghost": 200,
   "seed": 42069,
-  "level_max_time": 90,
+  "level_max_time": 300,
   "max_levels": 10
 }
