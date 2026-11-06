@@ -63,11 +63,10 @@ moved out of scope.
 
 ## Git history summary
 
-At the final compliance pass the repository contains 83 commits:
-
-- 68 commits recorded under tlogtenb's account, including merge commits
-  and pair-programming sessions with asylla on ghost work;
-- 15 commits recorded under asylla's account.
+The repository contains more than 80 commits. Most are recorded under
+tlogtenb's account, including merge commits and pair-programming
+sessions with asylla on ghost work, and 15 commits are recorded under
+asylla's account.
 
 The history is split into small behaviour-focused commits. The main
 integration points are:

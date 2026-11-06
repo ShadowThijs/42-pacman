@@ -80,12 +80,11 @@ Examples from the project:
 
 ### Commit record note
 
-The git history contains 68 commits recorded under tlogtenb's account
-and 15 commits recorded under asylla's account at the final compliance
-pass. Some commits recorded on tlogtenb's account cover pair-programming
-sessions with asylla on ghost collision, frightened behaviour and freeze
-edge cases. The contribution table therefore describes ownership of the
-work, not raw commit counts.
+Most of the history is recorded under tlogtenb's account, and 15 commits
+are recorded under asylla's account. Some commits recorded on tlogtenb's
+account cover pair-programming sessions with asylla on ghost collision,
+frightened behaviour and freeze edge cases. The contribution table
+therefore describes ownership of the work, not raw commit counts.
 
 ## Definition of done
 
