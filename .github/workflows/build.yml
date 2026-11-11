@@ -57,9 +57,7 @@ jobs:
       - name: Lint
         run: |
           uv run --frozen python -m flake8 .
-          uv run --frozen python -m mypy . --warn-return-any \
-            --warn-unused-ignores --ignore-missing-imports \
-            --disallow-untyped-defs --check-untyped-defs
+          uv run --frozen python -m mypy . --warn-return-any --warn-unused-ignores --ignore-missing-imports --disallow-untyped-defs --check-untyped-defs
 
       - name: Run tests
         run: uv run --frozen python -m pytest tests/ -q
