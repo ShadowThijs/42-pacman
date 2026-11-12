@@ -23,6 +23,7 @@ part actually moved, including the long gap in August and September.
 | 2 Nov | Freeze and performance | Frozen ghost identity, render caching, frame clearing |
 | 3 Nov | Timer and victory | Corner power pellets, level timer, victory screen, packaging workflow |
 | 6 Nov | Final pass | Config `level` fix, instructions screen, tests, README and project management |
+| 12 Nov | Published on itch.io | https://shadowthijs.itch.io/42-pacman |
 
 ## Gantt view of the actual work
 

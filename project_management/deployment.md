@@ -1,7 +1,8 @@
 # Deployment
 
-The game is packaged with PyInstaller. The upload to itch.io is done by
-hand because it needs the team account.
+The game is packaged with PyInstaller and published on itch.io at
+https://shadowthijs.itch.io/42-pacman. The upload is done by hand with
+butler.
 
 ## Build the package
 
@@ -94,13 +95,12 @@ Install butler from https://itch.io/docs/butler/ and log in once:
 butler login
 ```
 
-Push each channel. Replace `<account>/<project>` with the itch.io
-project path:
+Push each channel to the published project:
 
 ```sh
-butler push release/linux   <account>/<project>:linux   --userversion 1.0.0
-butler push release/windows <account>/<project>:windows --userversion 1.0.0
-butler push release/macos/42-pacman-macos.zip <account>/<project>:macos --userversion 1.0.0
+butler push release/linux   shadowthijs/42-pacman:linux   --userversion 1.0.0
+butler push release/windows shadowthijs/42-pacman:windows --userversion 1.0.0
+butler push release/macos/42-pacman-macos.zip shadowthijs/42-pacman:macos --userversion 1.0.0
 ```
 
 ## Page settings
@@ -121,7 +121,8 @@ butler push release/macos/42-pacman-macos.zip <account>/<project>:macos --userve
 4. Confirm the config next to the executable is read.
 5. Confirm a highscore survives a restart.
 6. Confirm the instructions screen is reachable.
-7. Add the public URL to the project page or the release notes.
+7. Confirm the public URL is listed in the README and project page:
+   https://shadowthijs.itch.io/42-pacman
 
 If a channel is broken, `butler status` and `butler undo` can roll it
 back before you push a fixed build.
@@ -132,5 +133,6 @@ back before you push a fixed build.
 - The game makes no network requests.
 - The database stores only the player name and score on the local
   machine.
-- The package builds and smoke tests pass. The upload is the only step
-  that needs the team account.
+- The package builds and smoke tests pass.
+- The published build is available at
+  https://shadowthijs.itch.io/42-pacman.

@@ -18,6 +18,10 @@ version 2.0.2, installed from the wheel in `maze/`. The game reads the
 generator's wall bitmasks directly and owns rendering, collision, ghost
 AI, scoring and progression.
 
+## Play
+
+Download the packaged build from [shadowthijs.itch.io/42-pacman](https://shadowthijs.itch.io/42-pacman).
+
 ## Features
 
 - Main menu with start, highscores, instructions and exit.
@@ -109,8 +113,9 @@ store highscores in the platform user-data directory:
 - macOS: `~/Library/Application Support/42-pacman/`
 
 Release builds are produced with `make package` and the CI workflow. The
-package can be published as an unlisted itch.io project;
-`project_management/deployment.md` contains the upload checklist.
+packaged game is available on itch.io at
+https://shadowthijs.itch.io/42-pacman. The upload steps are documented in
+`project_management/deployment.md`.
 
 ## Controls
 
@@ -436,7 +441,7 @@ retrospective evidence:
 - `acceptance_test_plan.md`: automated and manual tests, plus the bug
   log.
 - `blockers.md`: the problems that slowed us down.
-- `deployment.md`: packaging and itch.io upload steps.
+- `deployment.md`: packaging and itch.io release steps.
 
 ## Contributions
 

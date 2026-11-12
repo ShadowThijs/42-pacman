@@ -122,4 +122,5 @@ SQL.
   scatter/chase cycle.
 - The timer restarts the level and costs a life when it reaches zero.
 - Highscores are local to the machine.
-- The itch.io upload is a manual step outside the repository.
+- The packaged build is published on itch.io at
+  https://shadowthijs.itch.io/42-pacman.

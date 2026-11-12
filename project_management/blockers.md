@@ -67,8 +67,8 @@ the README to the spec and to the copy step in `make package`, and the
 game already has an instructions screen. The Linux smoke test now runs
 with the packaged config.
 
-## The itch.io upload needs an account
+## The itch.io upload needed an account
 
-The package is built and tested, but publishing needs the team's
-itch.io account. We wrote the upload steps in `deployment.md`. This is
-the only remaining external action.
+The package was built and tested, and the team's itch.io account was
+used to publish it at https://shadowthijs.itch.io/42-pacman. The upload
+steps are in `deployment.md`.

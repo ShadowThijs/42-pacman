@@ -18,7 +18,7 @@ retrospective evidence.
 - `acceptance_test_plan.md`: how we tested the game, including the bug
   log.
 - `blockers.md`: the problems that actually slowed us down.
-- `deployment.md`: how the package is built and uploaded.
+- `deployment.md`: how the package is built and published.
 
 ## One-minute tour
 

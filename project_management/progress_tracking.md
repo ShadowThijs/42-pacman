@@ -16,7 +16,7 @@
 | Testing | Done | 40 headless tests plus a manual play script |
 | Packaging | Done | PyInstaller spec, CI matrix and local smoke test |
 | Documentation | Done | README and this folder |
-| itch.io upload | Pending | Needs the team account |
+| itch.io release | Done | Published at https://shadowthijs.itch.io/42-pacman |
 
 ## Progress by phase
 
@@ -30,7 +30,7 @@
 | Screens | Menu, game, pause and score screens | Cheats, timer and victory |
 | Cheats and fright | Super-pacgums and cheat mode | Timer, victory and polish |
 | Timer and packaging | Level timer, victory screen and CI build | Final fixes and documentation |
-| Final pass | Config `level`, instructions, tests and docs | itch.io upload |
+| Final pass | Config `level`, instructions, tests, docs and itch.io release | None |
 
 ## Compared to the phase list
 
@@ -68,17 +68,12 @@ work with asylla on the ghost code.
 | Headless play and screen render | Pass |
 | Invalid config battery | Pass, no traceback |
 | Packaged executable smoke test | Pass |
-| CI build matrix | Linux, Windows and macOS build |
+| CI build matrix | Pass on Linux, Windows and macOS |
 
 ## What is left
 
-1. Run the final `make lint`, `make lint-strict`, `make test` and
-   `make package` on the committed tree.
-2. Upload the package to the unlisted itch.io page using
-   `deployment.md`.
-3. Add the public URL to the project page.
-4. Run through the manual script in `acceptance_test_plan.md` with the
-   packaged build.
+1. Run through the manual script in `acceptance_test_plan.md` with the
+   packaged build downloaded from
+   https://shadowthijs.itch.io/42-pacman.
 
-The upload is the only part that cannot be finished inside the
-repository.
+The package is published at https://shadowthijs.itch.io/42-pacman.

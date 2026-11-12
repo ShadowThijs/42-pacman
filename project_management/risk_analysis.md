@@ -23,7 +23,7 @@ ended.
 | The package could miss resources or the config file | Medium | Bundled `resources`, copied `config.json` and the README, checked the archive in CI | Closed |
 | We could run out of time on the ghost work | High | Split ghost ownership, integrated in October and tested on the real maze | Closed, but late |
 | AI suggestions could end up in code we cannot explain | Medium | Read, ran and tested every suggestion, and rewrote several of them | Controlled |
-| The itch.io upload needs the team account | High | Prepared the package and wrote the upload checklist | Open, external step |
+| The itch.io upload needs the team account | High | Published the package at https://shadowthijs.itch.io/42-pacman | Closed |
 
 ## What we would watch next time
 
