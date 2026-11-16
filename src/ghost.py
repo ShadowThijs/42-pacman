@@ -12,12 +12,11 @@ from mazegenerator import MazeGenerator
 from src.player import PacMan
 
 from .models import (
-    ANIMATION_FRAME_TIME,
     CELL_SIZE,
     DIRECTION_ORDER,
-    OFFSET,
     REVERSE,
     VECTORS,
+    Actor,
     Config,
     Direction,
     Position,
@@ -39,7 +38,7 @@ class GhostState(Enum):
     DEAD_WAITING = auto()
 
 
-class Ghost:
+class Ghost(Actor):
     """Base ghost: shared movement, pathfinding and drawing.
 
     Subclasses set ``COLOR``, their ``CORNER`` and ``chase_target``.
@@ -63,7 +62,6 @@ class Ghost:
         """Initialize the ghost at its spawn tile (or `spawn` if given)."""
         self.maze: MazeGenerator = maze
         self.config: Config = cfg
-        self.base_speed: int = speed
         self.release_delay: float = 0.0
 
         self.scatter_corner: Position = self._corner(*self.CORNER)
@@ -74,24 +72,10 @@ class Ghost:
         self.state: GhostState = GhostState.CHASE
         self.resume_state: GhostState = GhostState.CHASE
         self.timer: float = 0.0
-
-        self.row: int = self.spawn_pos.row
-        self.col: int = self.spawn_pos.col
-
-        self.progress: float = 0.0
-        self.direction: int | None = None
         self.reverse_allowed: bool = False
-        self.facing: int = Direction.East
-        self.frame: int = 1
-        self.anim_t: float = 0.0
-        self.anim_frame: int = 0
-
         self.target: Position = self.spawn_pos
-        self._base_px: float = 0.0
-        self._base_py: float = 0.0
-        self._face_dx: float = 0.0
-        self._face_dy: float = 0.0
-        self._sync_geometry()
+
+        super().__init__(self.spawn_pos.row, self.spawn_pos.col, speed)
 
     def reset_to_spawn(self) -> None:
         """Resets ghosts to spawn after pacman dies."""
@@ -103,23 +87,8 @@ class Ghost:
         self.col = self.spawn_pos.col
         self.target = self.spawn_pos
 
-        self.progress = 0.0
-        self.direction = None
         self.reverse_allowed = False
-        self.facing = Direction.East
-        self.anim_t = 0.0
-        self.anim_frame = 0
-        self.frame = 1
-        self._sync_geometry()
-
-    def _sync_geometry(self) -> None:
-        """Cache the tile centre and facing offset used by x/y and draw."""
-        ox, oy = OFFSET
-        self._base_px = ox + self.col * CELL_SIZE + CELL_SIZE / 2
-        self._base_py = oy + self.row * CELL_SIZE + CELL_SIZE / 2
-        dx, dy = VECTORS[self.facing]
-        self._face_dx = dx
-        self._face_dy = dy
+        self._reset_motion()
 
     def _corner(self, top: bool, left: bool) -> Position:
         """Corner tile of the maze grid: (top|bottom, left|right)."""
@@ -152,7 +121,7 @@ class Ghost:
         if self.direction is None:
             return
 
-        current_speed: float = float(self.base_speed)
+        current_speed: float = float(self.speed)
         if self.state == GhostState.FRIGHTENED:
             current_speed *= 0.6
         elif self.state == GhostState.DEAD_PATHING:
@@ -177,14 +146,6 @@ class Ghost:
                 return
 
         self._animate(dt)
-
-    def _animate(self, dt: float) -> None:
-        """Advance the two-frame walk cycle."""
-        self.anim_t += dt
-        if self.anim_t >= ANIMATION_FRAME_TIME:
-            self.anim_t = 0.0
-            self.anim_frame = 1 - self.anim_frame
-            self.frame = self.anim_frame + 1
 
     def _tick_timer(self, dt: float) -> None:
         """Advance the state timer and resume normal behaviour when done."""
@@ -377,20 +338,6 @@ class Ghost:
         if self.state == GhostState.FROZEN:
             return self.resume_state
         return self.state
-
-    @property
-    def x(self) -> float:
-        """Pixel x, interpolated between current tile and the next."""
-        if self.direction is None:
-            return self._base_px
-        return self._base_px + self._face_dx * CELL_SIZE * self.progress
-
-    @property
-    def y(self) -> float:
-        """Pixel y, interpolated between current tile and the next."""
-        if self.direction is None:
-            return self._base_py
-        return self._base_py + self._face_dy * CELL_SIZE * self.progress
 
     @staticmethod
     def _shortest_direction(

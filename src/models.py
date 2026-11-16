@@ -334,3 +334,80 @@ class Position:
     def __repr__(self) -> str:
         """Return representation."""
         return f"Position(row={self.row}, col={self.col})"
+
+
+class Actor:
+    """Something that walks the maze tile by tile.
+
+    Pac-Man and the ghosts share the very same movement bookkeeping:
+    the tile they stand on, the direction they are heading in, and how
+    far they are between that tile and the next one.  Pixel positions
+    (:attr:`x`, :attr:`y`) are derived from it, so both classes draw,
+    collide and reverse through one geometry.
+    """
+
+    def __init__(self, row: int, col: int, speed: int) -> None:
+        """Place the actor on tile (row, col) at ``speed`` px/second."""
+        self.speed: int = speed
+        self.row: int = row
+        self.col: int = col
+        self.progress: float = 0.0
+        self.direction: int | None = None
+        self.facing: int = Direction.East
+        self.frame: int = 1
+        self.anim_t: float = 0.0
+        self.anim_frame: int = 0
+        self._base_px: float = 0.0
+        self._base_py: float = 0.0
+        self._face_dx: float = 0.0
+        self._face_dy: float = 0.0
+        self._sync_geometry()
+
+    def _sync_geometry(self) -> None:
+        """Cache the tile centre and facing offset used by x/y and draw."""
+        ox, oy = OFFSET
+        self._base_px = ox + self.col * CELL_SIZE + CELL_SIZE / 2
+        self._base_py = oy + self.row * CELL_SIZE + CELL_SIZE / 2
+        dx, dy = VECTORS[self.facing]
+        self._face_dx = dx
+        self._face_dy = dy
+
+    def _reset_motion(self) -> None:
+        """Stop the actor on its current tile, facing east again."""
+        self.progress = 0.0
+        self.direction = None
+        self.facing = Direction.East
+        self.anim_t = 0.0
+        self.anim_frame = 0
+        self.frame = 1
+        self._sync_geometry()
+
+    def _animate(self, dt: float) -> None:
+        """Advance the two-frame walk cycle."""
+        self.anim_t += dt
+        if self.anim_t >= ANIMATION_FRAME_TIME:
+            self.anim_t = 0.0
+            self.anim_frame = 1 - self.anim_frame
+            self.frame = self.anim_frame + 1
+
+    @property
+    def x(self) -> float:
+        """Pixel x, interpolated between current tile and the next."""
+        if self.direction is None:
+            return self._base_px
+        return self._base_px + self._face_dx * CELL_SIZE * self.progress
+
+    @property
+    def y(self) -> float:
+        """Pixel y, interpolated between current tile and the next."""
+        if self.direction is None:
+            return self._base_py
+        return self._base_py + self._face_dy * CELL_SIZE * self.progress
+
+    @staticmethod
+    def _tile_at(x: float, y: float) -> tuple[int, int]:
+        """Return (row, col) of the tile containing pixel (x, y)."""
+        ox, oy = OFFSET
+        col: int = round((x - ox - CELL_SIZE / 2) / CELL_SIZE)
+        row: int = round((y - oy - CELL_SIZE / 2) / CELL_SIZE)
+        return row, col

@@ -5,12 +5,10 @@ from collections import deque
 import pygame
 
 from .models import (
-    ANIMATION_FRAME_TIME,
     CELL_SIZE,
-    OFFSET,
     REVERSE,
     VECTORS,
-    Direction,
+    Actor,
     can_move,
 )
 from .sprites import Sprites
@@ -20,39 +18,17 @@ from .sprites import Sprites
 INPUT_BUFFER: int = 2
 
 
-class PacMan:
+class PacMan(Actor):
     """Pacman player class."""
 
     def __init__(
         self, x: float, y: float, speed: int = 85, lives: int = 3
     ) -> None:
         """Initialize Pacman in the tile containing pixel (x, y)."""
-        self.speed: int = speed
-        self.row: int
-        self.col: int
-        self.row, self.col = self._tile_at(x, y)
-        self.progress: float = 0.0
-        self.direction: int | None = None
+        row, col = self._tile_at(x, y)
+        super().__init__(row, col, speed)
         self.pending: deque[int] = deque(maxlen=INPUT_BUFFER)
-        self.facing: int = Direction.East
-        self.frame: int = 1
-        self.anim_t: float = 0.0
-        self.anim_frame: int = 0
         self.lives: int = lives
-        self._base_px: float = 0.0
-        self._base_py: float = 0.0
-        self._face_dx: float = 0.0
-        self._face_dy: float = 0.0
-        self._sync_geometry()
-
-    def _sync_geometry(self) -> None:
-        """Cache the tile centre and facing offset used by x/y and draw."""
-        ox, oy = OFFSET
-        self._base_px = ox + self.col * CELL_SIZE + CELL_SIZE / 2
-        self._base_py = oy + self.row * CELL_SIZE + CELL_SIZE / 2
-        dx, dy = VECTORS[self.facing]
-        self._face_dx = dx
-        self._face_dy = dy
 
     def queue(self, direction: int) -> None:
         """Remember a direction press for the next tile centre.
@@ -71,14 +47,8 @@ class PacMan:
         ``update`` from ever calling ``_decide`` again.
         """
         self.row, self.col = self._tile_at(x, y)
-        self.progress = 0.0
-        self.direction = None
         self.pending.clear()
-        self.facing = Direction.East
-        self.anim_t = 0.0
-        self.anim_frame = 0
-        self.frame = 1
-        self._sync_geometry()
+        self._reset_motion()
 
     def update(
         self,
@@ -119,20 +89,12 @@ class PacMan:
                 self.progress = 0.0
                 return eaten
 
-        self.anim_t += dt
-        if self.anim_t >= ANIMATION_FRAME_TIME:
-            self.anim_t = 0.0
-            self.anim_frame = 1 - self.anim_frame
-        self.frame = self.anim_frame + 1
+        self._animate(dt)
         return eaten
 
     def _reverse_now(self) -> None:
         """Apply a reverse input immediately, even mid-tile."""
-        if (
-            self.direction is None
-            or self.progress <= 0.0
-            or not self.pending
-        ):
+        if self.direction is None or self.progress <= 0.0 or not self.pending:
             return
         requested: int = self.pending[-1]
         if requested != REVERSE[self.direction]:
@@ -172,25 +134,3 @@ class PacMan:
         """Draw the player."""
         spr: pygame.Surface = sp.pacman(self.facing, self.frame)
         screen.blit(spr, spr.get_rect(center=(round(self.x), round(self.y))))
-
-    @property
-    def x(self) -> float:
-        """Pixel x, interpolated between current tile and the next."""
-        if self.direction is None:
-            return self._base_px
-        return self._base_px + self._face_dx * CELL_SIZE * self.progress
-
-    @property
-    def y(self) -> float:
-        """Pixel y, interpolated between current tile and the next."""
-        if self.direction is None:
-            return self._base_py
-        return self._base_py + self._face_dy * CELL_SIZE * self.progress
-
-    @staticmethod
-    def _tile_at(x: float, y: float) -> tuple[int, int]:
-        """Return (row, col) of the tile containing pixel (x, y)."""
-        ox, oy = OFFSET
-        col: int = round((x - ox - CELL_SIZE / 2) / CELL_SIZE)
-        row: int = round((y - oy - CELL_SIZE / 2) / CELL_SIZE)
-        return row, col
